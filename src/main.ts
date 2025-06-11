@@ -61,7 +61,10 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 			this.registerEditorExtension(createWebDavImageExtension(this));
 		}
 
-		console.log("Webdav Manager loaded, version:", this.manifest.version);
+		console.log(
+			"WebDAV Image Uploader loaded, version:",
+			this.manifest.version
+		);
 	}
 
 	onunload() {

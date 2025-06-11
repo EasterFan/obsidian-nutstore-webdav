@@ -1,9 +1,4 @@
 import { App, Editor, Notice, TFile, moment, normalizePath } from "obsidian";
-import { join as nodeJoin } from "path";
-
-export function join(...args: string[]) {
-	return normalizePath(nodeJoin(...args));
-}
 
 // replace {{ key }} and {{ key:format }} with variables
 export function formatPath(

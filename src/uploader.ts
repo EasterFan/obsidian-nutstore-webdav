@@ -1,6 +1,5 @@
-import { BufferLike, createClient, FileStat, WebDAVClient } from "webdav";
+import { BufferLike, createClient, WebDAVClient } from "webdav";
 import WebDavImageUploaderPlugin from "./main";
-import { join } from "./utils";
 
 export class WebDavImageUploader {
 	plugin: WebDavImageUploaderPlugin;

@@ -3,8 +3,8 @@
     "name": "WebDAV Image Uploader",
     "version": "1.0.0",
     "minAppVersion": "1.8.10",
-    "description": "Uploads, downloads and deletes images on WebDAV server within Obsidian notes.",
+    "description": "Uploads, downloads and deletes images on WebDAV server within notes.",
     "author": "ste",
-    "authorUrl": "https://github.com/Koishiiko/obsidian-webdav-image-uploader",
+    "authorUrl": "https://github.com/Koishiiko",
     "isDesktopOnly": false
 }

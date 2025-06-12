@@ -1,4 +1,4 @@
-import { App, Editor, Notice, TFile, moment, normalizePath } from "obsidian";
+import { App, Editor, Notice, moment } from "obsidian";
 
 // replace {{ key }} and {{ key:format }} with variables
 export function formatPath(
@@ -26,7 +26,15 @@ export function formatPath(
 	});
 }
 
-export function getFormatVariables(file: File, note: TFile) {
+export interface NoteInfo {
+	basename: string;
+	stat: {
+		ctime: number;
+		mtime: number;
+	};
+}
+
+export function getFormatVariables(file: File, note: NoteInfo) {
 	const [fileName, fileExtension] = file.name.split(".");
 	return {
 		name: { type: "string", value: fileName },

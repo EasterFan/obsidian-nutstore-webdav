@@ -143,8 +143,10 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 		const now = new Date().getMilliseconds();
 		const exampleVars = getFormatVariables(
 			new File([""], "test.jpg"),
-			this.app.workspace.getActiveFile() ??
-				({ basename: "", stat: { ctime: now, mtime: now } } as TFile)
+			this.app.workspace.getActiveFile() ?? {
+				basename: "test-note",
+				stat: { ctime: now, mtime: now },
+			}
 		);
 		const formatSetting = new Setting(containerEl)
 			.setName("Path format")
@@ -228,7 +230,6 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 		const message = document.createElement("span");
 		message.textContent =
 			"The following oprations may break your vault, please make sure to backup your vault before proceeding.";
-		message.style.color = "red";
 		const description = new DocumentFragment();
 		description.appendChild(message);
 

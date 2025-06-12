@@ -272,7 +272,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		if (operation === "trash") {
 			await this.app.vault.trash(file, true);
 		} else if (operation === "delete") {
-			await this.app.vault.delete(file, true);
+			await this.app.fileManager.trashFile(file);
 		}
 	}
 

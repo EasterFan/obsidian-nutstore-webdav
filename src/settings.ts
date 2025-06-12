@@ -20,7 +20,7 @@ export interface WebDavImageUploaderSettings {
 	enableUpload: boolean;
 	format: string;
 	includeExtensions: string[];
-	uploadedFileOperation: "trash" | "delete" | "none";
+	uploadedFileOperation: "default" | "delete" | "none";
 }
 
 export const DEFAULT_SETTINGS: WebDavImageUploaderSettings = {
@@ -211,7 +211,7 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 			.addDropdown((dropdown) =>
 				dropdown
 					.addOption("delete", "Delete permanently")
-					.addOption("trash", "Move to system trash")
+					.addOption("default", "According the 'Files & links -> Deleted files' option")
 					.addOption("none", "Do nothing")
 					.setValue(this.plugin.settings.uploadedFileOperation)
 					.onChange((value) => {

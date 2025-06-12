@@ -269,10 +269,10 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 
 	async deleteLocalFile(file: TFile) {
 		const operation = this.settings.uploadedFileOperation;
-		if (operation === "trash") {
-			await this.app.vault.trash(file, true);
-		} else if (operation === "delete") {
+		if (operation === "default") {
 			await this.app.fileManager.trashFile(file);
+		} else if (operation === "delete") {
+			await this.app.vault.delete(file);
 		}
 	}
 

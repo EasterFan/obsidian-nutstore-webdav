@@ -119,6 +119,21 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 						this.saveSettings();
 					})
 			);
+
+		new Setting(containerEl)
+			.setName("Test connection")
+			.addButton((button) =>
+				button.setButtonText("Test").onClick(async () => {
+					button.setDisabled(true);
+					const error = await this.plugin.uploader.testConnection();
+					if (error == null) {
+						new Notice("Connection successful!");
+					} else {
+						new Notice(error);
+					}
+					button.setDisabled(false);
+				})
+			);
 	}
 
 	upload() {

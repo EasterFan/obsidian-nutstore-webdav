@@ -50,6 +50,7 @@ export class WebDavImageUploader {
 
 		return new FileInfo(file.name, this.getUrl(path));
 	}
+				headers: { Depth: "0" },
 
 	async deleteFile(url: string) {
 		const path = this.getPath(url);

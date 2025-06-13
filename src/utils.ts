@@ -81,19 +81,33 @@ export function getSelectedImageLink(editor: Editor) {
 }
 
 // get all image links in line
-export function matchImageLinks(line: string) {
-	// ![$1]($2)
-	const regex = /!\[(.*?)\]\((.*?)\)/g;
+export function matchImageLinks(line: string): ImageLinkInfo[] {
+	// ![$1]($2)|![[$3|$4]]
+	const regex =
+		/(?:!\[(.*?)\]\((.*?)\))|(?:!\[\[([^|\]]+?)(?:\|(.*?))?\]\])/g;
 	const matches = line.matchAll(regex);
 	return (
 		Array.from(matches)
-			.map((match) => ({
-				start: match.index!,
-				end: match.index! + match[0].length,
-				raw: match[0],
-				name: match[1],
-				path: match[2],
-			}))
+			.map((match) => {
+				let name: string;
+				let path: string;
+
+				if (match[3] != null) {
+					path = match[3];
+					name = match[4] ?? "";
+				} else {
+					name = match[1] ?? "";
+					path = match[2];
+				}
+
+				return {
+					start: match.index!,
+					end: match.index! + match[0].length,
+					raw: match[0],
+					name: name,
+					path: path,
+				};
+			})
 			// reverse the order as replacing links from back to front is more convenient
 			.reverse()
 	);

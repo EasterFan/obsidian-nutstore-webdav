@@ -2,9 +2,9 @@ import {
 	App,
 	debounce,
 	Debouncer,
+	Notice,
 	PluginSettingTab,
 	Setting,
-	TFile,
 } from "obsidian";
 import WebDavImageUploaderPlugin from "./main";
 import { formatPath, FormatVariables, getFormatVariables } from "./utils";
@@ -63,13 +63,12 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 	basic() {
 		const { containerEl } = this;
 
-		new Setting(containerEl).setName("Basic").setHeading();
-
 		new Setting(containerEl)
 			.setName("Url")
 			.setDesc("The URL of the WebDAV server.")
 			.addText((text) =>
 				text.setValue(this.plugin.settings.url).onChange((value) => {
+					value = value.trim();
 					if (value.endsWith("/")) {
 						value = value.slice(0, -1);
 					}
@@ -106,8 +105,8 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Disable basic auth")
 			.setDesc(
-				"By default, the plugin will intercept the image requests for WebDAV Authentication. " +
-					"It may take some rendering mistake when scroll up and down the content for now. " +
+				"By default, the plugin will intercept image requests for WebDAV authentication. " +
+					"It may cause some rendering mistakes when scrolling up and down the content. " +
 					"If you don't need this feature, you can disable it. " +
 					"You may need to restart Obsidian for this setting to take effect."
 			)
@@ -144,7 +143,7 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Enable upload on drop/paste")
 			.setDesc(
-				"Toggle if auto upload is enabled. If enabled, files will be uploaded when dropped or pasted."
+				"Toggle if auto-upload is enabled. If enabled, files will be uploaded when dropped or pasted."
 			)
 			.addToggle((toggle) =>
 				toggle
@@ -155,7 +154,7 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 					})
 			);
 
-		const now = new Date().getMilliseconds();
+		const now = Date.now();
 		const exampleVars = getFormatVariables(
 			new File([""], "test.jpg"),
 			this.app.workspace.getActiveFile() ?? {
@@ -168,10 +167,6 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 			.setDesc("The format for the uploaded file path.")
 			.addText((text) => {
 				text.setValue(this.plugin.settings.format).onChange((value) => {
-					if (!value.startsWith("/")) {
-						value = "/" + value;
-					}
-
 					this.plugin.settings.format = value;
 
 					const examplePath = formatPath(value, exampleVars);
@@ -190,10 +185,11 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 			notectime: "note creation time",
 			notemtime: "note last modified time",
 		};
-		containerEl.createEl("h4").textContent =
-			"Available variables (case insensitive)";
+		new Setting(containerEl)
+			.setName("Available variables (case-insensitive)")
+			.setHeading();
 		containerEl.createSpan().textContent =
-			"you can add `{{var}}` to use the variable, and `{{dateVar:format}}` to format the date(with moment.js).";
+			"You can add `{{var}}` to use the variable, and `{{dateVar:format}}` to format the date (with Moment.js).";
 		const descriptionsEl = containerEl.createEl("ul");
 		for (const [key, value] of Object.entries(descriptions)) {
 			const li = descriptionsEl.createEl("li");
@@ -204,7 +200,7 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 		new Setting(containerEl)
 			.setName("Include extensions")
 			.setDesc(
-				"Include file extensions when uploading,  separated by comma. Only files with these extensions will be uploaded."
+				"Include file extensions when uploading, separated by commas. Only files with these extensions will be uploaded."
 			)
 			.addTextArea((text) =>
 				text
@@ -226,7 +222,10 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 			.addDropdown((dropdown) =>
 				dropdown
 					.addOption("delete", "Delete permanently")
-					.addOption("default", "According the 'Files & links -> Deleted files' option")
+					.addOption(
+						"default",
+						"Same as 'Files & Links -> Deleted files'"
+					)
 					.addOption("none", "Do nothing")
 					.setValue(this.plugin.settings.uploadedFileOperation)
 					.onChange((value) => {
@@ -242,9 +241,9 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl).setName("Commands").setHeading();
 
-		const message = document.createElement("span");
+		const message = document.createElement("strong");
 		message.textContent =
-			"The following oprations may break your vault, please make sure to backup your vault before proceeding.";
+			"The following operations may break your vault. Please make sure to back up your vault before proceeding.";
 		const description = new DocumentFragment();
 		description.appendChild(message);
 

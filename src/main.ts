@@ -238,10 +238,11 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 			const path = formatPath(this.settings.format, vars);
 
 			const data = await this.uploader.uploadFile(file, path);
-			const newLink = data.toMarkdownLink();
-			replaceLink(editor, lineNumber, link, newLink);
 
 			await this.deleteLocalFile(tFile);
+
+			const newLink = data.toMarkdownLink();
+			replaceLink(editor, lineNumber, link, newLink);
 
 			new Notice(`File '${tFile.name}' uploaded successfully`);
 		} catch (e) {
@@ -285,7 +286,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		const total = notes.length;
 		for (const note of notes) {
 			notice.setMessage(
-				`Uploading '${note.path}''s files\n${count++}/${total}...`
+				`Uploading files in '${note.path}'\n${count++}/${total}...`
 			);
 
 			try {
@@ -328,6 +329,9 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 
 				const data = await this.uploader.uploadFile(file, path);
 				const newLink = data.toMarkdownLink();
+
+				await this.uploader.deleteFile(link.path);
+
 				newContent =
 					newContent.substring(0, link.start) +
 					newLink +
@@ -340,10 +344,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		}
 
 		if (content !== newContent) {
-			await this.app.vault.modify(note, newContent, {
-				ctime: note.stat.ctime,
-				mtime: note.stat.mtime,
-			});
+			await this.app.vault.process(note, () => newContent, note.stat);
 		}
 	}
 
@@ -356,13 +357,13 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		const total = notes.length;
 		for (const note of notes) {
 			notice.setMessage(
-				`Downloading '${note.path}''s files\n${count++}/${total}...`
+				`Downloading files in '${note.path}'\n${count++}/${total}...`
 			);
 
 			try {
 				await this.downloadNoteFiles(note);
 			} catch (e) {
-				noticeError(`Failed to upload files from '${note.path}', ${e}`);
+				noticeError(`Failed to download files from '${note.path}', ${e}`);
 			}
 		}
 
@@ -406,10 +407,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		}
 
 		if (content !== newContent) {
-			await this.app.vault.modify(note, newContent, {
-				ctime: note.stat.ctime,
-				mtime: note.stat.mtime,
-			});
+			await this.app.vault.process(note, () => newContent, note.stat);
 		}
 	}
 

@@ -1,4 +1,4 @@
-import { App, Editor, Notice, moment } from "obsidian";
+import { App, Editor, Notice, moment, normalizePath } from "obsidian";
 
 // replace {{ key }} and {{ key:format }} with variables
 export function formatPath(
@@ -6,7 +6,7 @@ export function formatPath(
 	variables: ReturnType<typeof getFormatVariables>
 ) {
 	const regex = /\{\{\s*(\w+)(?::([^}]+))?\s*\}\}/g;
-	return path.replace(regex, (match, key, format) => {
+	const result = path.replace(regex, (match, key, format) => {
 		const varKey = key.toLowerCase() as keyof typeof variables;
 		const value = variables[varKey];
 		if (value == null) {
@@ -24,6 +24,9 @@ export function formatPath(
 
 		return match;
 	});
+
+    // normallizePath() is always contains no leading `/`
+	return "/" + normalizePath(result);
 }
 
 export interface NoteInfo {

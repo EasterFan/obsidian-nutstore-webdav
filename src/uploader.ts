@@ -30,7 +30,7 @@ export class WebDavImageUploader {
 		const filePath =
 			await this.plugin.app.fileManager.getAvailablePathForAttachment(
 				fileName,
-                sourcePath
+				sourcePath
 			);
 		return await this.plugin.app.vault.createBinary(
 			filePath,
@@ -50,7 +50,19 @@ export class WebDavImageUploader {
 
 		return new FileInfo(file.name, this.getUrl(path));
 	}
+
+	async testConnection() {
+		try {
+			const resp = await this.client.customRequest("/", {
+				method: "PROPFIND",
 				headers: { Depth: "0" },
+			});
+
+			return `Check connection failed: ${resp.status} ${resp.statusText}`;
+		} catch (e) {
+			return `${e}`;
+		}
+	}
 
 	async deleteFile(url: string) {
 		const path = this.getPath(url);

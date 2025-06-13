@@ -306,18 +306,28 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		const links = matchImageLinks(content).filter(
 			(link) => !this.isExcludeFile(link.path) && isLocalPath(link.path)
 		);
-		if (links.length === 0) {
+		const total = links.length;
+		if (total === 0) {
 			return;
 		}
 
+		const notice = new Notice("", 0);
+
+		let count = 0;
 		let newContent = content;
 		for (const link of links) {
+			count += 1;
+
 			try {
 				const tFile = getFileByPath(this.app, link.path);
 				if (tFile == null) {
 					console.warn(`File '${link.path}' not found in vault.`);
 					continue;
 				}
+
+				notice.setMessage(
+					`Uploading '${tFile.path}'\n${count}/${total}...`
+				);
 
 				const buffer = await this.app.vault.readBinary(tFile);
 				const file = new File([buffer], tFile.name, {
@@ -343,6 +353,8 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 			}
 		}
 
+		notice.hide();
+
 		if (content !== newContent) {
 			await this.app.vault.process(note, () => newContent, note.stat);
 		}
@@ -363,7 +375,9 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 			try {
 				await this.downloadNoteFiles(note);
 			} catch (e) {
-				noticeError(`Failed to download files from '${note.path}', ${e}`);
+				noticeError(
+					`Failed to download files from '${note.path}', ${e}`
+				);
 			}
 		}
 
@@ -378,13 +392,21 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 			(link) =>
 				!this.isExcludeFile(link.path) && this.isWebdavUrl(link.path)
 		);
-		if (links.length === 0) {
+		const total = links.length;
+		if (total === 0) {
 			return;
 		}
 
+		const notice = new Notice("", 0);
+
+		let count = 1;
 		let newContent = content;
 		for (const link of links) {
 			try {
+				notice.setMessage(
+					`Downloading '${link.path}'\n${count++}/${total}...`
+				);
+
 				const file = await this.uploader.downloadFile(
 					link.path,
 					note.path
@@ -405,6 +427,8 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 				);
 			}
 		}
+
+		notice.hide();
 
 		if (content !== newContent) {
 			await this.app.vault.process(note, () => newContent, note.stat);

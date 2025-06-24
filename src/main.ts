@@ -353,11 +353,11 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 			}
 		}
 
-		notice.hide();
-
 		if (content !== newContent) {
-			await this.app.vault.process(note, () => newContent, note.stat);
+			await this.app.vault.modify(note, newContent, note.stat);
 		}
+
+		notice.hide();
 	}
 
 	async downloadVaultFiles() {
@@ -428,11 +428,11 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 			}
 		}
 
-		notice.hide();
-
 		if (content !== newContent) {
-			await this.app.vault.process(note, () => newContent, note.stat);
+			await this.app.vault.modify(note, newContent, note.stat);
 		}
+
+		notice.hide();
 	}
 
 	isWebdavUrl(url: string) {

@@ -58,6 +58,11 @@ export class WebDavImageUploader {
 				headers: { Depth: "0" },
 			});
 
+            /// WebDAV servers may return 207 (Multi-Status) for a successful PROPFIND request
+            if (resp.status === 207) {
+                return null;
+            }
+
 			return `Check connection failed: ${resp.status} ${resp.statusText}`;
 		} catch (e) {
 			return `${e}`;

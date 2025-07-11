@@ -1,4 +1,4 @@
-# Obsidian WebDAV Image Uploader
+# WebDAV Image Uploader
 
 This is an Obsidian (https://obsidian.md) plugin for managing local images by storing them on WebDAV server, and previewing them via links (`![]()`):
 

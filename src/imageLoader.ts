@@ -5,6 +5,8 @@ import {
 	ViewUpdate,
 } from "@codemirror/view";
 import type WebDavImageUploaderPlugin from "./main";
+import { requestUrl } from "obsidian";
+import { escape, unescape } from "querystring";
 
 const loadingLight =
 	"data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCIgdmlld0JveD0iMCAwIDI0IDI0Ij48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIzIiBzdHJva2U9IiMwMDAwMDAiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0ibm9uZSIgc3Ryb2tlLWRhc2hhcnJheT0iNiwgMzAiPjxhbmltYXRlVHJhbnNmb3JtIGF0dHJpYnV0ZU5hbWU9InRyYW5zZm9ybSIgdHlwZT0icm90YXRlIiBmcm9tPSIwIDEyIDEyIiB0bz0iMzYwIDEyIDEyIiBkdXI9IjFzIiByZXBlYXRDb3VudD0iaW5kZWZpbml0ZSIvPjwvY2lyY2xlPjwvc3ZnPg==";
@@ -104,12 +106,15 @@ export class WebDavImageLoader {
 
 		// fetch the image with username and password
 		const { username, password } = this.plugin.settings;
-		const token = Buffer.from(`${username}:${password}`).toString("base64");
-		const resp = await fetch(url, {
+		const token = btoa(
+			unescape(encodeURIComponent(`${username}:${password}`))
+		);
+		const resp = await requestUrl({
+			url: url,
 			method: "GET",
 			headers: { Authorization: `Basic ${token}` },
 		});
-		const blob = await resp.blob();
+		const blob = new Blob([resp.arrayBuffer]);
 
 		el.src = URL.createObjectURL(blob);
 		el.setAttribute("loaded", "true");

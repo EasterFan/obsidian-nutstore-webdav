@@ -24,7 +24,7 @@ export interface WebDavImageUploaderSettings {
 }
 
 export const DEFAULT_SETTINGS: WebDavImageUploaderSettings = {
-	url: "https://yourdomain.com:8443/dav",
+	url: "",
 	username: "",
 	password: "",
 	disableBasicAuth: false,
@@ -67,14 +67,17 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 			.setName("Url")
 			.setDesc("The URL of the WebDAV server.")
 			.addText((text) =>
-				text.setValue(this.plugin.settings.url).onChange((value) => {
-					value = value.trim();
-					if (value.endsWith("/")) {
-						value = value.slice(0, -1);
-					}
-					this.plugin.settings.url = value;
-					this.saveSettings();
-				})
+				text
+					.setValue(this.plugin.settings.url)
+					.setPlaceholder("https://yourdomain.com:8443/dav")
+					.onChange((value) => {
+						value = value.trim();
+						if (value.endsWith("/")) {
+							value = value.slice(0, -1);
+						}
+						this.plugin.settings.url = value;
+						this.saveSettings();
+					})
 			);
 
 		new Setting(containerEl)
@@ -241,17 +244,18 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl).setName("Commands").setHeading();
 
-		const message = document.createElement("strong");
-		message.textContent =
-			"The following operations may break your vault. Please make sure to back up your vault before proceeding.";
-		const description = new DocumentFragment();
-		description.appendChild(message);
-
 		let uploadVaultSetting: Setting;
 		let downloadVaultSetting: Setting;
 
 		const warning = new Setting(containerEl)
-			.setDesc(description)
+			.setDesc(
+				createFragment((frag) =>
+					frag.createSpan({
+						cls: "mod-warning",
+						text: "The following operations may break your vault. Please make sure to back up your vault before proceeding.",
+					})
+				)
+			)
 			.addButton((button) =>
 				button.setButtonText("I understand").onClick(() => {
 					warning.clear();

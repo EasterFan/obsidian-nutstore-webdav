@@ -2,9 +2,6 @@
 
 This is an Obsidian (https://obsidian.md) plugin for managing local images by storing them on WebDAV server, and previewing them via links (`![]()`):
 
-- Upload, download, and delete images in notes.
-- Batch upload or download images from the entire vault (to/from the WebDAV server).
-
 ![sample](./assets/sample.gif)
 
 ## Features
@@ -29,13 +26,33 @@ In the Plugin Settings -> Commands, some buttons are provided for batch uploadin
 
 ### About Image Preview
 
-WebDAV may require [Http Authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Authentication) to verify permissions when accessing files. But Obsidian (CodeMirror) does not seem to provide an API to add request headers for requests sent by `![]()`. Therefore, this plugin intercepts and replaces image links, manually fetching and displaying the images. This display behavior differs from Obsidian's default behavior and may result in loading failures(in rare cases).
+WebDAV may require [Http Authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Authentication) to verify permissions when accessing files. But Obsidian (CodeMirror) does not seem to provide an API to add request headers for requests sent by `![]()`. Therefore, this plugin manually fetching and displaying the images. This display behavior differs from Obsidian's default behavior and may result in loading failures (in rare cases), and it doesn't work in other cases (like reading mode or [image properties](https://help.obsidian.md/bases/views#Image+property)).
 
-If you do not need this feature (when your server has disabled access verification), you can disable it in the plugin settings (**you may need to restart Obsidian after switching**). If you have a better solution, Pull Requests are welcome.
+I've tried to solve this problem by various methods within Obsidian, but none of them have worked well so far. If you don't like this feature, you can disable it in the plugin settings (and restart Obsidian), then configure your server to allow image access (or simply disable authentication). For example, you can add the following configuration to your Nginx server to add headers for requests from Obsidian:
+
+```nginx
+# Obsidian will send requests with user-agent containing "obsidian/x.x.x"
+map $http_user_agent $obsidian_header {
+    default 0;
+    "~*obsidian" "Basic {TOKEN}";
+}
+
+server {
+    # ...
+    location /dav/obsidian {
+        # ...
+        proxy_set_header Authorization $obsidian_header;
+    }
+}
+```
+
+You can generate the token by encoding `username:password` in base64 format (`echo -n "username:password" | base64`).
+
+If you have a better solution, pull requests are welcome.
 
 ### About This Plugin
 
-This plugin was primarily written for my personal use to replace the [image-auto-upload](https://github.com/renmu123/obsidian-image-auto-upload-plugin) plugin, due to it requires running an additional `PicGo` locally, and it does not offer a feature to upload images for the entire vault (I have thousands of nots needs to process).
+This plugin was primarily written for my personal use to replace the [image-auto-upload](https://github.com/renmu123/obsidian-image-auto-upload-plugin) plugin, due to it requires running an additional `PicGo` locally, and it does not offer a feature to upload images for the entire vault (I have thousands of notes needs to process).
 
 After trying my plugin out for a few days, I feel that it already meets my needs: uploading all images to WebDAV (even though it only ran once), and then easily uploading and downloading images within notes (with the ability to conveniently delete them when something goes wrong).
 

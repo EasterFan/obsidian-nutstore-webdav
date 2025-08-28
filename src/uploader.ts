@@ -1,4 +1,4 @@
-import { BufferLike, createClient, WebDAVClient } from "webdav";
+import { WebDAVClient, createWebDAVClient } from "./webdav-client";
 import WebDavImageUploaderPlugin from "./main";
 
 export class WebDavImageUploader {
@@ -13,7 +13,7 @@ export class WebDavImageUploader {
 
 	initClient() {
 		const settings = this.plugin.settings;
-		this.client = createClient(this.plugin.settings.url, {
+		this.client = createWebDAVClient(settings.url, {
 			username: settings.username,
 			password: settings.password,
 		});
@@ -23,26 +23,19 @@ export class WebDavImageUploader {
 		const path = this.getPath(url);
 		const fileName = path.split("/").pop()!;
 
-		const resp = await this.client.getFileContents(path, {
-			format: "binary",
-		});
+		const resp = await this.client.getFileContents(path);
 
 		const filePath =
 			await this.plugin.app.fileManager.getAvailablePathForAttachment(
 				fileName,
 				sourcePath
 			);
-		return await this.plugin.app.vault.createBinary(
-			filePath,
-			resp as BufferLike
-		);
+		return await this.plugin.app.vault.createBinary(filePath, resp);
 	}
 
 	async uploadFile(file: File, path: string): Promise<FileInfo> {
 		const buffer = await file.arrayBuffer();
-		const success = await this.client.putFileContents(path, buffer, {
-			overwrite: true,
-		});
+		const success = await this.client.putFileContents(path, buffer);
 
 		if (!success) {
 			throw new Error(`Failed to upload file: '${file.name}'`);
@@ -58,12 +51,12 @@ export class WebDavImageUploader {
 				headers: { Depth: "0" },
 			});
 
-            /// WebDAV servers may return 207 (Multi-Status) for a successful PROPFIND request
-            if (resp.status === 207) {
-                return null;
-            }
+			// WebDAV servers may return 207 (Multi-Status) for a successful PROPFIND request
+			if (resp.status === 207) {
+				return null;
+			}
 
-			return `Check connection failed: ${resp.status} ${resp.statusText}`;
+			return `Check connection failed: ${resp.status}`;
 		} catch (e) {
 			return `${e}`;
 		}

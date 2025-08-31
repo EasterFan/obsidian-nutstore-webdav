@@ -85,9 +85,9 @@ export function getSelectedImageLink(editor: Editor) {
 
 // get all image links in line
 export function matchImageLinks(line: string): ImageLinkInfo[] {
-	// ![$1]($2)|![[$3|$4]]
+	// !?[$1]($2)|!?[[$3|$4]] - 支持普通链接和图片链接
 	const regex =
-		/(?:!\[(.*?)\]\((.*?)\))|(?:!\[\[([^|\]]+?)(?:\|(.*?))?\]\])/g;
+		/(?:!?\[(.*?)\]\((.*?)\))|(?:!?\[\[([^|\]]+?)(?:\|(.*?))?\]\])/g;
 	const matches = line.matchAll(regex);
 	return (
 		Array.from(matches)

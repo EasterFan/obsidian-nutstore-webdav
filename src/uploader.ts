@@ -35,6 +35,13 @@ export class WebDavImageUploader {
 
 	async uploadFile(file: File, path: string): Promise<FileInfo> {
 		const buffer = await file.arrayBuffer();
+		
+		// 确保目录存在，解决409错误
+		const directory = path.substring(0, path.lastIndexOf('/'));
+		if (directory) {
+			await this.client.ensureDirectoryExists(directory);
+		}
+		
 		const success = await this.client.putFileContents(path, buffer);
 
 		if (!success) {

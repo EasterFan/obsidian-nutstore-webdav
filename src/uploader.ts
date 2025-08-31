@@ -35,13 +35,7 @@ export class WebDavImageUploader {
 
 	async uploadFile(file: File, path: string): Promise<FileInfo> {
 		const buffer = await file.arrayBuffer();
-		
-		// 确保目录存在，解决409错误
-		const directory = path.substring(0, path.lastIndexOf('/'));
-		if (directory) {
-			await this.client.ensureDirectoryExists(directory);
-		}
-		
+
 		const success = await this.client.putFileContents(path, buffer);
 
 		if (!success) {
@@ -94,12 +88,22 @@ export class FileInfo {
 
 	toMarkdownLink(): string {
 		// 判断是否为图片文件类型
-		const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'bmp', 'ico'];
-		const fileExtension = this.fileName.split('.').pop()?.toLowerCase() || '';
+		const imageExtensions = [
+			"jpg",
+			"jpeg",
+			"png",
+			"gif",
+			"svg",
+			"webp",
+			"bmp",
+			"ico",
+		];
+		const fileExtension =
+			this.fileName.split(".").pop()?.toLowerCase() || "";
 		const isImage = imageExtensions.includes(fileExtension);
-		
+
 		// 图片文件使用 ![](url) 格式，非图片文件使用 [](url) 格式
-		return isImage 
+		return isImage
 			? `![${this.fileName}](${this.url})`
 			: `[${this.fileName}](${this.url})`;
 	}

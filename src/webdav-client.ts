@@ -33,13 +33,21 @@ export class WebDAVClient {
 				headers: { "Content-Type": "application/octet-stream" },
 				body: data,
 			});
-
 			this.handleResponseCode(response);
+		} catch (e) {
+			// parent directory not exists
+			if (e.message.includes("409")) {
+				await this.ensureDirectoryExists(
+					path.substring(0, path.lastIndexOf("/"))
+				);
 
-			return true;
-		} catch (error) {
-			throw error;
+				await this.putFileContents(path, data);
+			} else {
+				throw e;
+			}
 		}
+
+		return true;
 	}
 
 	async getFileContents(path: string) {
@@ -81,21 +89,21 @@ export class WebDAVClient {
 	}
 
 	async ensureDirectoryExists(path: string): Promise<void> {
-		const directories = path.split('/').filter(dir => dir !== '');
-		let currentPath = '';
-		
+		const directories = path.split("/").filter((dir) => dir !== "");
+		let currentPath = "";
+
 		for (const dir of directories) {
-			currentPath += '/' + dir;
+			currentPath += "/" + dir;
 			try {
-				// 检查目录是否存在
-				await this.customRequest(currentPath, {
-					method: "PROPFIND",
-					headers: { "Depth": "0" }
-				});
-			} catch (error) {
-				// 如果目录不存在（404），则创建它
-				if (error.message.includes('404')) {
-					await this.createDirectory(currentPath);
+				await this.createDirectory(currentPath);
+			} catch (e) {
+				if (e.message.includes("405") || e.message.includes("409")) {
+					// most webdav servers return 405/409 if the directory already exists
+					console.warn(
+						`Directory already exists or cannot be created: ${currentPath}`
+					);
+				} else {
+					throw e;
 				}
 			}
 		}

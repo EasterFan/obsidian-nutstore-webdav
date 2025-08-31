@@ -68,6 +68,39 @@ export class WebDAVClient {
 		this.handleResponseCode(response);
 	}
 
+	async createDirectory(path: string): Promise<void> {
+		const encodedPath = this.encodePath(path);
+		const url = this.buildUrl(encodedPath);
+
+		const response = await this.request({
+			url,
+			method: "MKCOL",
+		});
+
+		this.handleResponseCode(response);
+	}
+
+	async ensureDirectoryExists(path: string): Promise<void> {
+		const directories = path.split('/').filter(dir => dir !== '');
+		let currentPath = '';
+		
+		for (const dir of directories) {
+			currentPath += '/' + dir;
+			try {
+				// 检查目录是否存在
+				await this.customRequest(currentPath, {
+					method: "PROPFIND",
+					headers: { "Depth": "0" }
+				});
+			} catch (error) {
+				// 如果目录不存在（404），则创建它
+				if (error.message.includes('404')) {
+					await this.createDirectory(currentPath);
+				}
+			}
+		}
+	}
+
 	async customRequest(
 		path: string,
 		options: {

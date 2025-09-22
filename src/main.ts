@@ -1,5 +1,5 @@
 import { Editor, Menu, Notice, Plugin, TFile } from "obsidian";
-import { WebDavImageUploader } from "./uploader";
+import { WebDavClient } from "./webdavClient";
 import { createWebDavImageExtension, WebDavImageLoader } from "./imageLoader";
 import {
 	formatPath,
@@ -21,7 +21,7 @@ import {
 export default class WebDavImageUploaderPlugin extends Plugin {
 	settings: WebDavImageUploaderSettings;
 
-	uploader: WebDavImageUploader;
+	client: WebDavClient;
 
 	loader: WebDavImageLoader;
 
@@ -30,7 +30,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 
 		this.addSettingTab(new WebDavImageUploaderSettingTab(this.app, this));
 
-		this.uploader = new WebDavImageUploader(this);
+		this.client = new WebDavClient(this);
 
 		this.loader = new WebDavImageLoader(this);
 
@@ -78,14 +78,14 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 			await this.loadData()
 		);
 
-		if (this.uploader != null) {
-			this.uploader.initClient();
+		if (this.client != null) {
+			this.client.initClient();
 		}
 	}
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-		this.uploader.initClient();
+		this.client.initClient();
 	}
 
 	async toggleAutoUpload() {
@@ -129,7 +129,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 			const activeFile = this.app.workspace.getActiveFile()!;
 			const vars = getFormatVariables(file, activeFile);
 			const path = formatPath(this.settings.format, vars);
-			const data = await this.uploader.uploadFile(file, path);
+			const data = await this.client.uploadFile(file, path);
 
 			const link = data.toMarkdownLink();
 			editor.replaceSelection(link);
@@ -198,7 +198,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 	) {
 		const notice = new Notice(`Downloading file '${link.path}'...`);
 		try {
-			const file = await this.uploader.downloadFile(link.path);
+			const file = await this.client.downloadFile(link.path);
 
 			const newLink = this.app.fileManager.generateMarkdownLink(
 				file,
@@ -237,7 +237,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 			);
 			const path = formatPath(this.settings.format, vars);
 
-			const data = await this.uploader.uploadFile(file, path);
+			const data = await this.client.uploadFile(file, path);
 
 			await this.deleteLocalFile(tFile);
 
@@ -259,7 +259,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 	) {
 		const notice = new Notice(`Deleting file '${link.path}'...`, 0);
 		try {
-			await this.uploader.deleteFile(link.path);
+			await this.client.deleteFile(link.path);
 			replaceLink(editor, lineNumber, link);
 		} catch (e) {
 			noticeError(`Failed to delete file '${link.path}', ${e}`);
@@ -337,10 +337,10 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 				const vars = getFormatVariables(file, tFile);
 				const path = formatPath(this.settings.format, vars);
 
-				const data = await this.uploader.uploadFile(file, path);
+				const data = await this.client.uploadFile(file, path);
 				const newLink = data.toMarkdownLink();
 
-				await this.uploader.deleteFile(link.path);
+				await this.client.deleteFile(link.path);
 
 				newContent =
 					newContent.substring(0, link.start) +
@@ -407,7 +407,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 					`Downloading '${link.path}'\n${count++}/${total}...`
 				);
 
-				const file = await this.uploader.downloadFile(
+				const file = await this.client.downloadFile(
 					link.path,
 					note.path
 				);

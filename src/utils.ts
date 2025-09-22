@@ -25,7 +25,7 @@ export function formatPath(
 		return match;
 	});
 
-    // normallizePath() is always contains no leading `/`
+	// normallizePath() is always contains no leading `/`
 	return "/" + normalizePath(result);
 }
 
@@ -131,4 +131,8 @@ export function isLocalPath(path: string) {
 export function noticeError(message: string, ...args: any[]) {
 	console.error(message, ...args);
 	new Notice(message, 5000);
+}
+
+export function getToken(username?: string, password?: string) {
+	return btoa(unescape(encodeURIComponent(`${username}:${password}`)));
 }

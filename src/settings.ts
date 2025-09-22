@@ -127,7 +127,7 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 			.addButton((button) =>
 				button.setButtonText("Test").onClick(async () => {
 					button.setDisabled(true);
-					const error = await this.plugin.uploader.testConnection();
+					const error = await this.plugin.client.testConnection();
 					if (error == null) {
 						new Notice("Connection successful!");
 					} else {

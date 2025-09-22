@@ -8,6 +8,7 @@ import {
 } from "obsidian";
 import WebDavImageUploaderPlugin from "./main";
 import { formatPath, FormatVariables, getFormatVariables } from "./utils";
+import { BatchUploader, BatchDownloader } from "./batch";
 
 export interface WebDavImageUploaderSettings {
 	// Basic
@@ -271,7 +272,9 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 				button
 					.setButtonText("Upload")
 					.setDisabled(true)
-					.onClick(() => this.plugin.uploadVaultFiles())
+					.onClick(() =>
+						new BatchUploader(this.plugin).uploadVaultFiles()
+					)
 			);
 
 		downloadVaultSetting = new Setting(containerEl)
@@ -281,7 +284,9 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 				button
 					.setButtonText("Download")
 					.setDisabled(true)
-					.onClick(() => this.plugin.downloadVaultFiles())
+					.onClick(() =>
+						new BatchDownloader(this.plugin).downloadVaultFiles()
+					)
 			);
 	}
 }

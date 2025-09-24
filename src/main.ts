@@ -1,4 +1,4 @@
-import { Editor, Menu, Notice, Plugin, TFile } from "obsidian";
+import { Editor, Menu, Notice, Plugin, TFile, TFolder } from "obsidian";
 import { WebDavClient } from "./webdavClient";
 import { createWebDavImageExtension, WebDavImageLoader } from "./imageLoader";
 import {
@@ -16,6 +16,7 @@ import {
 	WebDavImageUploaderSettings,
 	WebDavImageUploaderSettingTab,
 } from "./settings";
+import { BatchDownloader, BatchUploader } from "./batch";
 
 export default class WebDavImageUploaderPlugin extends Plugin {
 	settings: WebDavImageUploaderSettings;
@@ -52,6 +53,13 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 			this.app.workspace.on(
 				"editor-menu",
 				this.onRightClickLink.bind(this)
+			)
+		);
+
+		this.registerEvent(
+			this.app.workspace.on(
+				"file-menu",
+				this.onRightClickExplorer.bind(this)
 			)
 		);
 
@@ -187,6 +195,51 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 						)
 					)
 			);
+		}
+	}
+
+	async onRightClickExplorer(menu: Menu, file: TFile, source: string) {
+		if (source !== "file-explorer-context-menu") {
+			return;
+		}
+		console.log(file);
+		console.log(source);
+		if (file instanceof TFile) {
+			menu.addItem((item) =>
+				item
+					.setTitle("Upload files in note to WebDAV")
+					.setIcon("arrow-up-from-line")
+					.onClick(() =>
+						new BatchUploader(this).uploadNoteFiles(file)
+					)
+			);
+			menu.addItem((item) =>
+				item
+					.setTitle("Download files in note from WebDAV")
+					.setIcon("arrow-down-from-line")
+					.onClick(() =>
+						new BatchDownloader(this).downloadNoteFiles(file)
+					)
+			);
+		}
+
+		if (file instanceof TFolder) {
+            menu.addItem((item) =>
+                item
+                    .setTitle("Upload files in folder's notes to WebDAV")
+					.setIcon("arrow-up-from-line")
+					.onClick(() =>
+						new BatchUploader(this).uploadFolderFiles(file)
+					)
+            );
+            menu.addItem((item) =>
+                item
+                    .setTitle("Download files in folder's notes from WebDAV")
+                    .setIcon("arrow-down-from-line")
+                    .onClick(() =>
+                        new BatchDownloader(this).downloadFolderFiles(file)
+                    )
+            );
 		}
 	}
 

@@ -1,4 +1,4 @@
-import { Notice, TFile } from "obsidian";
+import { Notice, TFile, TFolder } from "obsidian";
 import {
 	formatPath,
 	getFileByPath,
@@ -10,14 +10,21 @@ import {
 import WebDavImageUploaderPlugin from "./main";
 
 export class BatchUploader {
-    plugin: WebDavImageUploaderPlugin;
+	plugin: WebDavImageUploaderPlugin;
 
-    constructor(plugin: WebDavImageUploaderPlugin) {
-        this.plugin = plugin;
-    }
+	constructor(plugin: WebDavImageUploaderPlugin) {
+		this.plugin = plugin;
+	}
 
 	async uploadVaultFiles() {
-		const notes = this.plugin.app.vault.getMarkdownFiles();
+		this.uploadFolderFiles();
+	}
+
+	async uploadFolderFiles(folder?: TFolder) {
+		const notes =
+			folder == null
+				? this.plugin.app.vault.getMarkdownFiles()
+				: getMarkdownFilesInFolder(folder);
 
 		const notice = new Notice("", 0);
 
@@ -43,7 +50,8 @@ export class BatchUploader {
 	async uploadNoteFiles(note: TFile) {
 		const content = await this.plugin.app.vault.read(note);
 		const links = matchImageLinks(content).filter(
-			(link) => !this.plugin.isExcludeFile(link.path) && isLocalPath(link.path)
+			(link) =>
+				!this.plugin.isExcludeFile(link.path) && isLocalPath(link.path)
 		);
 		const total = links.length;
 		if (total === 0) {
@@ -79,7 +87,7 @@ export class BatchUploader {
 				const data = await this.plugin.client.uploadFile(file, path);
 				const newLink = data.toMarkdownLink();
 
-				await this.plugin.client.deleteFile(link.path);
+				await this.plugin.deleteLocalFile(tFile);
 
 				newContent =
 					newContent.substring(0, link.start) +
@@ -101,14 +109,20 @@ export class BatchUploader {
 }
 
 export class BatchDownloader {
-    plugin: WebDavImageUploaderPlugin;
+	plugin: WebDavImageUploaderPlugin;
 
-    constructor(plugin: WebDavImageUploaderPlugin) {
-        this.plugin = plugin;
-    }
-
+	constructor(plugin: WebDavImageUploaderPlugin) {
+		this.plugin = plugin;
+	}
 	async downloadVaultFiles() {
-		const notes = this.plugin.app.vault.getMarkdownFiles();
+		this.downloadFolderFiles();
+	}
+
+	async downloadFolderFiles(folder?: TFolder) {
+		const notes =
+			folder == null
+				? this.plugin.app.vault.getMarkdownFiles()
+				: getMarkdownFilesInFolder(folder);
 
 		const notice = new Notice("", 0);
 
@@ -137,7 +151,8 @@ export class BatchDownloader {
 		const content = await this.plugin.app.vault.read(note);
 		const links = matchImageLinks(content).filter(
 			(link) =>
-				!this.plugin.isExcludeFile(link.path) && this.plugin.isWebdavUrl(link.path)
+				!this.plugin.isExcludeFile(link.path) &&
+				this.plugin.isWebdavUrl(link.path)
 		);
 		const total = links.length;
 		if (total === 0) {
@@ -159,10 +174,11 @@ export class BatchDownloader {
 					note.path
 				);
 
-				const newLink = this.plugin.app.fileManager.generateMarkdownLink(
-					file,
-					file.path
-				);
+				const newLink =
+					this.plugin.app.fileManager.generateMarkdownLink(
+						file,
+						file.path
+					);
 
 				newContent =
 					newContent.substring(0, link.start) +
@@ -181,4 +197,16 @@ export class BatchDownloader {
 
 		notice.hide();
 	}
+}
+
+function getMarkdownFilesInFolder(folder: TFolder) {
+	const files: TFile[] = [];
+	for (const item of folder.children) {
+		if (item instanceof TFile && item.extension === "md") {
+			files.push(item);
+		} else if (item instanceof TFolder) {
+			files.push(...getMarkdownFilesInFolder(item));
+		}
+	}
+	return files;
 }

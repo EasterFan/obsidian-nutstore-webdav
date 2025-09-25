@@ -89,7 +89,6 @@ export class FileInfo {
 	}
 
 	toMarkdownLink(): string {
-		// 判断是否为图片文件类型
 		const imageExtensions = [
 			"jpg",
 			"jpeg",
@@ -104,7 +103,6 @@ export class FileInfo {
 			this.fileName.split(".").pop()?.toLowerCase() || "";
 		const isImage = imageExtensions.includes(fileExtension);
 
-		// 图片文件使用 ![](url) 格式，非图片文件使用 [](url) 格式
 		return isImage
 			? `![${this.fileName}](${this.url})`
 			: `[${this.fileName}](${this.url})`;

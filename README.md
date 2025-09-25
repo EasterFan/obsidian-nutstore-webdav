@@ -20,7 +20,18 @@ In the Plugin Settings -> Commands, some buttons are provided for batch uploadin
 - Read all notes in the vault, and upload all local images (`![file](attachments/file.jpg)`) to the WebDAV server.
 - Read all notes in the vault, and download all remote images (`![file](https://yourdomain.com/dav/...)`) to locally.
 
-**Note: These features have not been thoroughly tested (only run once in my vault). Please be sure to back up your vault before running them to prevent damage due to bugs.**
+In the file explorer, you can:
+
+- Right-click on a file, and upload/download all images in this file to/from WebDAV.
+- Right-click on a folder, and upload/download all images in this folder's notes to/from WebDAV (including subfolders).
+
+### Batch Process Log
+
+After performing batch upload/download operations, a log file named `webdav-batch-log-<timestamp>.md` will be created in the vault's root directory. This log file records the results of each file processed during the batch operation, you can check it to see which files were successfully processed and which ones failed. And you can enable/disable this feature in the plugin settings.
+
+More details about the new features can be found in the [Release Page](https://github.com/Koishiiko/obsidian-webdav-image-uploader/releases).
+
+**Note: These batch process features have not been thoroughly tested (only run once in my vault). Please be sure to back up your vault before running them to prevent damage due to bugs.**
 
 ## Others
 

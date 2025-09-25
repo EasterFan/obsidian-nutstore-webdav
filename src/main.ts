@@ -17,6 +17,7 @@ import {
 	WebDavImageUploaderSettingTab,
 } from "./settings";
 import { BatchDownloader, BatchUploader } from "./batch";
+import { ConfirmModal } from "./modals/confirmModal";
 
 export default class WebDavImageUploaderPlugin extends Plugin {
 	settings: WebDavImageUploaderSettings;
@@ -202,44 +203,61 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		if (source !== "file-explorer-context-menu") {
 			return;
 		}
-		console.log(file);
-		console.log(source);
+
+		const modal = new ConfirmModal(this.app, {
+			title: "Warning",
+			content:
+				"The following operations may break your vault. Please make sure to back up your vault before proceeding, are you sure to continue?",
+		});
+
 		if (file instanceof TFile) {
 			menu.addItem((item) =>
 				item
 					.setTitle("Upload files in note to WebDAV")
 					.setIcon("arrow-up-from-line")
-					.onClick(() =>
-						new BatchUploader(this).uploadNoteFiles(file)
-					)
+					.onClick(() => {
+						modal.onSubmit = () => {
+							new BatchUploader(this).uploadNoteFiles(file);
+						};
+						modal.open();
+					})
 			);
 			menu.addItem((item) =>
 				item
 					.setTitle("Download files in note from WebDAV")
 					.setIcon("arrow-down-from-line")
-					.onClick(() =>
-						new BatchDownloader(this).downloadNoteFiles(file)
-					)
+					.onClick(() => {
+						modal.onSubmit = () => {
+							new BatchDownloader(this).downloadNoteFiles(file);
+						};
+						modal.open();
+					})
 			);
 		}
 
 		if (file instanceof TFolder) {
-            menu.addItem((item) =>
-                item
-                    .setTitle("Upload files in folder's notes to WebDAV")
+			menu.addItem((item) =>
+				item
+					.setTitle("Upload files in folder's notes to WebDAV")
 					.setIcon("arrow-up-from-line")
-					.onClick(() =>
-						new BatchUploader(this).uploadFolderFiles(file)
-					)
-            );
-            menu.addItem((item) =>
-                item
-                    .setTitle("Download files in folder's notes from WebDAV")
-                    .setIcon("arrow-down-from-line")
-                    .onClick(() =>
-                        new BatchDownloader(this).downloadFolderFiles(file)
-                    )
-            );
+					.onClick(() => {
+						modal.onSubmit = () => {
+							new BatchUploader(this).uploadFolderFiles(file);
+						};
+						modal.open();
+					})
+			);
+			menu.addItem((item) =>
+				item
+					.setTitle("Download files in folder's notes from WebDAV")
+					.setIcon("arrow-down-from-line")
+					.onClick(() => {
+						modal.onSubmit = () => {
+							new BatchDownloader(this).downloadFolderFiles(file);
+						};
+						modal.open();
+					})
+			);
 		}
 	}
 

@@ -1,4 +1,4 @@
-import { Notice, TFile, TFolder } from "obsidian";
+import { App, Notice, TFile, TFolder, moment } from "obsidian";
 import {
 	formatPath,
 	getFileByPath,
@@ -17,6 +17,12 @@ export class BatchUploader {
 
 	constructor(plugin: WebDavImageUploaderPlugin) {
 		this.plugin = plugin;
+	}
+
+	async createLog() {
+		if (this.plugin.settings.createBatchLog) {
+			await createBatchLog(this.plugin.app, this.result);
+		}
 	}
 
 	async uploadVaultFiles() {
@@ -107,6 +113,7 @@ export class BatchUploader {
 					success: true,
 					note,
 					link: link,
+					newLink: data.url,
 				});
 			} catch (e) {
 				const message = `Failed to upload file '${link.path}' from ${note.path}, ${e}`;
@@ -136,6 +143,13 @@ export class BatchDownloader {
 	constructor(plugin: WebDavImageUploaderPlugin) {
 		this.plugin = plugin;
 	}
+
+	async createLog() {
+		if (this.plugin.settings.createBatchLog) {
+			await createBatchLog(this.plugin.app, this.result);
+		}
+	}
+
 	async downloadVaultFiles() {
 		this.downloadFolderFiles();
 	}
@@ -211,6 +225,7 @@ export class BatchDownloader {
 					success: true,
 					note,
 					link: link,
+					newLink: file.path,
 				});
 			} catch (e) {
 				const message = `Failed to download file '${link.path}' from ${note.path}, ${e}`;
@@ -252,4 +267,57 @@ export interface BatchProcessFileResult {
 	note: TFile;
 
 	link: ImageLinkInfo;
+
+	newLink?: string;
+}
+
+export async function createBatchLog(
+	app: App,
+	results: BatchProcessFileResult[]
+) {
+	if (results.length === 0) {
+		return;
+	}
+
+	const logPath = `webdav-batch-log-${moment().format("YYYYMMDD-HHmmss")}.md`;
+
+	const noteResults = results.reduce((map, result) => {
+		const arr = map.get(result.note) ?? [];
+		arr.push(result);
+		map.set(result.note, arr);
+		return map;
+	}, new Map<TFile, BatchProcessFileResult[]>());
+
+	let content = "";
+
+	const headers = ["Status", "Original Link", "New Link", "Error Message"];
+	const headerRow = `| ${headers.join(" | ")} |`;
+	const separatorRow = `| ${headers.map(() => "---").join(" | ")} |`;
+
+	for (const [note, results] of noteResults) {
+		content += `## ${app.fileManager.generateMarkdownLink(
+			note,
+			logPath,
+			undefined,
+			note.basename
+		)}\n\n`;
+		results.sort((a, b) =>
+			a.success === b.success ? 0 : a.success ? -1 : 1
+		);
+		content += headerRow + "\n" + separatorRow + "\n";
+		for (const result of results) {
+			content += `| ${result.success ? "✅" : "❌"} | ${
+				result.link.path
+			} | ${result.newLink ?? ""} | ${result.message ?? ""} |\n`;
+		}
+	}
+
+	let file = getFileByPath(app, logPath);
+	if (file != null) {
+		app.vault.modify(file, content);
+	} else {
+		file = await app.vault.create(logPath, content);
+	}
+
+	app.workspace.getLeaf(true).openFile(file);
 }

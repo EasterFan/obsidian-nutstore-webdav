@@ -22,6 +22,9 @@ export interface WebDavImageUploaderSettings {
 	format: string;
 	includeExtensions: string[];
 	uploadedFileOperation: "default" | "delete" | "none";
+
+	// Batch processes
+	createBatchLog: boolean;
 }
 
 export const DEFAULT_SETTINGS: WebDavImageUploaderSettings = {
@@ -34,6 +37,8 @@ export const DEFAULT_SETTINGS: WebDavImageUploaderSettings = {
 	format: "/{{nameext}}",
 	includeExtensions: ["jpg", "jpeg", "png", "gif", "svg", "webp"],
 	uploadedFileOperation: "delete",
+
+	createBatchLog: true,
 };
 
 export class WebDavImageUploaderSettingTab extends PluginSettingTab {
@@ -57,6 +62,8 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 		this.basic();
 
 		this.upload();
+
+		this.batch();
 
 		this.commands();
 	}
@@ -240,6 +247,26 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 			);
 	}
 
+	batch() {
+		const { containerEl } = this;
+
+		new Setting(containerEl).setName("Batch processes").setHeading();
+
+		new Setting(containerEl)
+			.setName("Create batch operation log")
+			.setDesc(
+				"Toggle if a log file should be created after batch upload/download."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.createBatchLog ?? true)
+					.onChange((value) => {
+						this.plugin.settings.createBatchLog = value;
+						this.saveSettings();
+					})
+			);
+	}
+
 	commands() {
 		const { containerEl } = this;
 
@@ -272,9 +299,11 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 				button
 					.setButtonText("Upload")
 					.setDisabled(true)
-					.onClick(() =>
-						new BatchUploader(this.plugin).uploadVaultFiles()
-					)
+					.onClick(async () => {
+						const uploader = new BatchUploader(this.plugin);
+						await uploader.uploadVaultFiles();
+						await uploader.createLog();
+					})
 			);
 
 		downloadVaultSetting = new Setting(containerEl)
@@ -284,9 +313,13 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 				button
 					.setButtonText("Download")
 					.setDisabled(true)
-					.onClick(() =>
-						new BatchDownloader(this.plugin).downloadVaultFiles()
-					)
+					.onClick(async () => {
+						const downloader = new BatchDownloader(
+							this.plugin
+						);
+						await downloader.downloadVaultFiles();
+						await downloader.createLog();
+					})
 			);
 	}
 }

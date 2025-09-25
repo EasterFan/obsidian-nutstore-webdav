@@ -216,8 +216,10 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 					.setTitle("Upload files in note to WebDAV")
 					.setIcon("arrow-up-from-line")
 					.onClick(() => {
-						modal.onSubmit = () => {
-							new BatchUploader(this).uploadNoteFiles(file);
+						modal.onSubmit = async () => {
+							const uploader = new BatchUploader(this);
+							await uploader.uploadNoteFiles(file);
+							await uploader.createLog();
 						};
 						modal.open();
 					})
@@ -227,8 +229,10 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 					.setTitle("Download files in note from WebDAV")
 					.setIcon("arrow-down-from-line")
 					.onClick(() => {
-						modal.onSubmit = () => {
-							new BatchDownloader(this).downloadNoteFiles(file);
+						modal.onSubmit = async () => {
+							const downloader = new BatchDownloader(this);
+							await downloader.downloadNoteFiles(file);
+							await downloader.createLog();
 						};
 						modal.open();
 					})
@@ -241,8 +245,10 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 					.setTitle("Upload files in folder's notes to WebDAV")
 					.setIcon("arrow-up-from-line")
 					.onClick(() => {
-						modal.onSubmit = () => {
-							new BatchUploader(this).uploadFolderFiles(file);
+						modal.onSubmit = async () => {
+							const uploader = new BatchUploader(this);
+							await uploader.uploadFolderFiles(file);
+							await uploader.createLog();
 						};
 						modal.open();
 					})
@@ -252,8 +258,10 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 					.setTitle("Download files in folder's notes from WebDAV")
 					.setIcon("arrow-down-from-line")
 					.onClick(() => {
-						modal.onSubmit = () => {
-							new BatchDownloader(this).downloadFolderFiles(file);
+						modal.onSubmit = async () => {
+							const downloader = new BatchDownloader(this);
+							await downloader.downloadFolderFiles(file);
+							await downloader.createLog();
 						};
 						modal.open();
 					})

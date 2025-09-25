@@ -3,6 +3,7 @@ import {
 	formatPath,
 	getFileByPath,
 	getFormatVariables,
+	ImageLinkInfo,
 	isLocalPath,
 	matchImageLinks,
 	noticeError,
@@ -11,6 +12,8 @@ import WebDavImageUploaderPlugin from "./main";
 
 export class BatchUploader {
 	plugin: WebDavImageUploaderPlugin;
+
+	result: BatchProcessFileResult[] = [];
 
 	constructor(plugin: WebDavImageUploaderPlugin) {
 		this.plugin = plugin;
@@ -68,7 +71,14 @@ export class BatchUploader {
 			try {
 				const tFile = getFileByPath(this.plugin.app, link.path);
 				if (tFile == null) {
-					console.warn(`File '${link.path}' not found in vault.`);
+					const message = `File '${link.path}' not found in vault.`;
+					this.result.push({
+						success: false,
+						message,
+						note,
+						link: link,
+					});
+					console.warn(message);
 					continue;
 				}
 
@@ -93,10 +103,20 @@ export class BatchUploader {
 					newContent.substring(0, link.start) +
 					newLink +
 					newContent.substring(link.end);
+				this.result.push({
+					success: true,
+					note,
+					link: link,
+				});
 			} catch (e) {
-				noticeError(
-					`Failed to upload file '${link.path}' from ${note.path}, ${e}`
-				);
+				const message = `Failed to upload file '${link.path}' from ${note.path}, ${e}`;
+				this.result.push({
+					success: false,
+					message,
+					note,
+					link: link,
+				});
+				noticeError(message);
 			}
 		}
 
@@ -110,6 +130,8 @@ export class BatchUploader {
 
 export class BatchDownloader {
 	plugin: WebDavImageUploaderPlugin;
+
+	result: BatchProcessFileResult[] = [];
 
 	constructor(plugin: WebDavImageUploaderPlugin) {
 		this.plugin = plugin;
@@ -184,10 +206,21 @@ export class BatchDownloader {
 					newContent.substring(0, link.start) +
 					newLink +
 					newContent.substring(link.end);
+
+				this.result.push({
+					success: true,
+					note,
+					link: link,
+				});
 			} catch (e) {
-				noticeError(
-					`Failed to download file '${link.path}' from ${note.path}, ${e}`
-				);
+				const message = `Failed to download file '${link.path}' from ${note.path}, ${e}`;
+				this.result.push({
+					success: false,
+					message,
+					note,
+					link: link,
+				});
+				noticeError(message);
 			}
 		}
 
@@ -209,4 +242,14 @@ function getMarkdownFilesInFolder(folder: TFolder) {
 		}
 	}
 	return files;
+}
+
+export interface BatchProcessFileResult {
+	success: boolean;
+
+	message?: string;
+
+	note: TFile;
+
+	link: ImageLinkInfo;
 }

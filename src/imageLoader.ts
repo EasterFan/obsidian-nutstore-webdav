@@ -6,7 +6,6 @@ import {
 } from "@codemirror/view";
 import type WebDavImageUploaderPlugin from "./main";
 import { requestUrl } from "obsidian";
-import { unescape } from "querystring";
 import { getToken } from "./utils";
 
 const loadingLight =
@@ -147,7 +146,7 @@ export class WebDavImageLoader {
 	shouldLoadImage(el: HTMLImageElement) {
 		const url = el.src;
 		return (
-			el.getAttribute("loaded") !== "true" &&
+			el.getAttribute("webdav-loaded") !== "true" &&
 			url != null &&
 			url !== "" &&
 			this.plugin.isWebdavUrl(url)

@@ -89,6 +89,13 @@ export class FileInfo {
 	}
 
 	toMarkdownLink(): string {
+		const type = this.getType();
+		return type === "image"
+			? `![${this.fileName}](${this.url})`
+			: `[${this.fileName}](${this.url})`;
+	}
+
+	getType(): string {
 		const imageExtensions = [
 			"jpg",
 			"jpeg",
@@ -99,13 +106,10 @@ export class FileInfo {
 			"bmp",
 			"ico",
 		];
-		const fileExtension =
-			this.fileName.split(".").pop()?.toLowerCase() || "";
-		const isImage = imageExtensions.includes(fileExtension);
 
-		return isImage
-			? `![${this.fileName}](${this.url})`
-			: `[${this.fileName}](${this.url})`;
+		const fileExtension =
+			this.fileName.split(".").pop()?.toLowerCase() ?? "";
+		return imageExtensions.includes(fileExtension) ? "image" : "file";
 	}
 }
 

@@ -57,6 +57,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 			)
 		);
 
+        // register right click menu items when clicking on file explorer
 		this.registerEvent(
 			this.app.workspace.on(
 				"file-menu",
@@ -274,7 +275,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		link: ImageLinkInfo,
 		editor: Editor
 	) {
-		const notice = new Notice(`Downloading file '${link.path}'...`);
+		const notice = new Notice(`Downloading file '${link.path}'...`, 0);
 		try {
 			const file = await this.client.downloadFile(link.path);
 

@@ -1,4 +1,11 @@
-import { App, Editor, Notice, moment, normalizePath } from "obsidian";
+import {
+	App,
+	Editor,
+	MarkdownView,
+	Notice,
+	moment,
+	normalizePath,
+} from "obsidian";
 
 // replace {{ key }} and {{ key:format }} with variables
 export function formatPath(
@@ -135,4 +142,8 @@ export function noticeError(message: string, ...args: any[]) {
 
 export function getToken(username?: string, password?: string) {
 	return btoa(unescape(encodeURIComponent(`${username}:${password}`)));
+}
+
+export function getCurrentEditor(app: App) {
+	return app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 }

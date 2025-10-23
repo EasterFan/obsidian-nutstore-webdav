@@ -1,8 +1,18 @@
-import { Editor, Menu, Notice, Plugin, TFile, TFolder } from "obsidian";
+import {
+	Editor,
+	Menu,
+	Notice,
+	Platform,
+	Plugin,
+	TAbstractFile,
+	TFile,
+	TFolder,
+} from "obsidian";
 import { WebDavClient } from "./webdavClient";
 import { createWebDavImageExtension, WebDavImageLoader } from "./imageLoader";
 import {
 	formatPath,
+	getCurrentEditor,
 	getFileByPath,
 	getFormatVariables,
 	getSelectedImageLink,
@@ -56,13 +66,32 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 				this.onRightClickLink.bind(this)
 			)
 		);
+		// on mobile platform, obsidian is not trigger `editor-menu` event on right-clicking the url,
+		// and trigger `url-menu` event instead
+		if (Platform.isMobile) {
+			this.registerEvent(
+				this.app.workspace.on("url-menu", (menu) =>
+					this.onRightClickLink(menu, getCurrentEditor(this.app)!)
+				)
+			);
+		}
 
-        // register right click menu items when clicking on file explorer
 		this.registerEvent(
-			this.app.workspace.on(
-				"file-menu",
-				this.onRightClickExplorer.bind(this)
-			)
+			this.app.workspace.on("file-menu", (menu, file, source) => {
+				// obsidian is not trigger `editor-menu` event on mobile platform,
+				// and only trigger `link-context-menu` event
+				if (Platform.isMobile && source === "link-context-menu") {
+					return this.onRightClickLink(
+						menu,
+						getCurrentEditor(this.app)!
+					);
+				}
+
+				// register right click menu items in file explorer
+				if (source === "file-explorer-context-menu") {
+					this.onRightClickExplorer(menu, file);
+				}
+			})
 		);
 
 		// add basic authentication header when loading webdav images
@@ -200,18 +229,14 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		}
 	}
 
-	async onRightClickExplorer(menu: Menu, file: TFile, source: string) {
-		if (source !== "file-explorer-context-menu") {
-			return;
-		}
-
+	async onRightClickExplorer(menu: Menu, file: TAbstractFile) {
 		const modal = new ConfirmModal(this.app, {
 			title: "Warning",
 			content:
 				"The following operations may break your vault. Please make sure to back up your vault before proceeding, are you sure to continue?",
 		});
 
-		if (file instanceof TFile) {
+		if (file instanceof TFile && file.extension === "md") {
 			menu.addItem((item) =>
 				item
 					.setTitle("Upload files in note to WebDAV")

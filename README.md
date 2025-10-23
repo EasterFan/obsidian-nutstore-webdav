@@ -39,27 +39,38 @@ More details about the new features can be found in the [Release Page](https://g
 
 WebDAV may require [Http Authentication](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Authentication) to verify permissions when accessing files. But Obsidian (CodeMirror) does not seem to provide an API to add request headers for requests sent by `![]()`. Therefore, this plugin manually fetching and displaying the images. This display behavior differs from Obsidian's default behavior and may result in loading failures (in rare cases), and it doesn't work in other cases (like reading mode or [image properties](https://help.obsidian.md/bases/views#Image+property)).
 
-I've tried to solve this problem by various methods within Obsidian, but none of them have worked well so far. If you don't like this feature, you can disable it in the plugin settings (and restart Obsidian), then configure your server to allow image access (or simply disable authentication). For example, you can add the following configuration to your Nginx server to add headers for requests from Obsidian:
+If you don't like this feature, you can disable it in the plugin settings (and restart Obsidian), then configure your server to allow image access (or simply disable authentication). For example, you can identify Obsidian's requests using the following headers:
+
+```http
+
+# desktop app
+User-Agent: obsidian/x.x.x
+
+# mobile app
+X-Requested-With: md.obsidian
+```
+
+So we can identify these requests in Nginx like this:
 
 ```nginx
-# Obsidian will send requests with user-agent containing "obsidian/x.x.x"
-map $http_user_agent $obsidian_header {
-    default 0;
+# concat the headers and match "obsidian", return the token if matched
+map "$http_user_agent|$http_x_requested_with" $obsidian_header {
+    default $http_authorization;
+    # generate your token by encoding "username:password" in base64 format:
+    # $> echo -n "username:password" | base64
     "~*obsidian" "Basic {TOKEN}";
 }
 
 server {
     # ...
-    location /dav/obsidian {
-        # ...
+    location /obsidian {
         proxy_set_header Authorization $obsidian_header;
+        # ...
     }
 }
 ```
 
-You can generate the token by encoding `username:password` in base64 format (`echo -n "username:password" | base64`).
-
-If you have a better solution, pull requests are welcome.
+Then you don't need to use this plugin's account settings and the preview feature. If you have a better solution, pull requests are welcome.
 
 ### About This Plugin
 

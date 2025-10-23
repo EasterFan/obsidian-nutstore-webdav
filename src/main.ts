@@ -17,6 +17,7 @@ import {
 	getFormatVariables,
 	getSelectedImageLink,
 	ImageLinkInfo,
+	isImage,
 	isLocalPath,
 	noticeError,
 	replaceLink,
@@ -304,10 +305,14 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		try {
 			const file = await this.client.downloadFile(link.path);
 
-			const newLink = this.app.fileManager.generateMarkdownLink(
+			let newLink = this.app.fileManager.generateMarkdownLink(
 				file,
 				file.path
 			);
+
+			if (isImage(link.path) && newLink[0] !== "!") {
+				newLink = `!${newLink}`;
+			}
 
 			replaceLink(editor, lineNumber, link, newLink);
 		} catch (e) {

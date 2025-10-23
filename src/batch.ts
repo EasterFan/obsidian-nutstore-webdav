@@ -4,6 +4,7 @@ import {
 	getFileByPath,
 	getFormatVariables,
 	ImageLinkInfo,
+	isImage,
 	isLocalPath,
 	matchImageLinks,
 	noticeError,
@@ -210,11 +211,14 @@ export class BatchDownloader {
 					note.path
 				);
 
-				const newLink =
-					this.plugin.app.fileManager.generateMarkdownLink(
-						file,
-						file.path
-					);
+				let newLink = this.plugin.app.fileManager.generateMarkdownLink(
+					file,
+					file.path
+				);
+
+				if (isImage(link.path) && newLink[0] !== "!") {
+					newLink = `!${newLink}`;
+				}
 
 				newContent =
 					newContent.substring(0, link.start) +

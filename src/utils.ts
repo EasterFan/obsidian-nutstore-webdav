@@ -147,3 +147,23 @@ export function getToken(username?: string, password?: string) {
 export function getCurrentEditor(app: App) {
 	return app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 }
+
+export function isImage(fileName: string) {
+	const imageExtensions = [
+		"jpg",
+		"jpeg",
+		"png",
+		"gif",
+		"svg",
+		"webp",
+		"bmp",
+		"ico",
+	];
+
+	const index = fileName.lastIndexOf(".");
+	if (index === -1) {
+		return false;
+	}
+	const fileExtension = fileName.substring(index + 1);
+	return imageExtensions.includes(fileExtension);
+}

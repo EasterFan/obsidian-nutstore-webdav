@@ -22,6 +22,7 @@ export interface WebDavImageUploaderSettings {
 	format: string;
 	includeExtensions: string[];
 	uploadedFileOperation: "default" | "delete" | "none";
+	enableDummyPdf?: boolean;
 
 	// Batch processes
 	createBatchLog: boolean;
@@ -37,6 +38,7 @@ export const DEFAULT_SETTINGS: WebDavImageUploaderSettings = {
 	format: "/{{nameext}}",
 	includeExtensions: ["jpg", "jpeg", "png", "gif", "svg", "webp"],
 	uploadedFileOperation: "delete",
+	enableDummyPdf: false,
 
 	createBatchLog: true,
 };
@@ -245,6 +247,31 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 						this.saveSettings();
 					})
 			);
+
+		new Setting(containerEl)
+			.setName("Enable dummy PDF")
+			.setDesc(
+				createFragment((frag) => {
+					frag.createSpan({
+						text: "If enabled, a ",
+					});
+					frag.createEl("a", {
+						href: "https://ryotaushio.github.io/obsidian-pdf-plus/external-pdf-files.html",
+						text: "dummy PDF file",
+					});
+					frag.createSpan({
+						text: " will be created when uploading a pdf file. You should add 'pdf' to the include extensions.",
+					});
+				})
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.enableDummyPdf ?? false)
+					.onChange((value) => {
+						this.plugin.settings.enableDummyPdf = value;
+						this.saveSettings();
+					})
+			);
 	}
 
 	batch() {
@@ -314,9 +341,7 @@ export class WebDavImageUploaderSettingTab extends PluginSettingTab {
 					.setButtonText("Download")
 					.setDisabled(true)
 					.onClick(async () => {
-						const downloader = new BatchDownloader(
-							this.plugin
-						);
+						const downloader = new BatchDownloader(this.plugin);
 						await downloader.downloadVaultFiles();
 						await downloader.createLog();
 					})

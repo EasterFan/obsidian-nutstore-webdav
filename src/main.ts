@@ -17,10 +17,11 @@ import {
 	getFormatVariables,
 	getSelectedImageLink,
 	ImageLinkInfo,
-	isImage,
+	getFileType,
 	isLocalPath,
 	noticeError,
 	replaceLink,
+	createDummyPdf,
 } from "./utils";
 import {
 	DEFAULT_SETTINGS,
@@ -170,7 +171,16 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 			const path = formatPath(this.settings.format, vars);
 			const data = await this.client.uploadFile(file, path);
 
-			const link = data.toMarkdownLink();
+			let link;
+			if (
+				this.settings.enableDummyPdf &&
+				getFileType(data.fileName) === "pdf"
+			) {
+				link = await createDummyPdf(this.app, activeFile, data);
+			} else {
+				link = data.toMarkdownLink();
+			}
+
 			editor.replaceSelection(link);
 		} catch (e) {
 			noticeError(`Failed to upload file: '${file.name}', ${e}`);
@@ -323,7 +333,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 				file.path
 			);
 
-			if (isImage(link.path) && newLink[0] !== "!") {
+			if (getFileType(link.path) === "image" && newLink[0] !== "!") {
 				newLink = `!${newLink}`;
 			}
 

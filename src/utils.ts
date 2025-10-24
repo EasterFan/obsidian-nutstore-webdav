@@ -3,9 +3,12 @@ import {
 	Editor,
 	MarkdownView,
 	Notice,
+	TFile,
 	moment,
 	normalizePath,
 } from "obsidian";
+import { FileInfo } from "./webdavClient";
+import { arrayBuffer } from "stream/consumers";
 
 // replace {{ key }} and {{ key:format }} with variables
 export function formatPath(
@@ -148,7 +151,21 @@ export function getCurrentEditor(app: App) {
 	return app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 }
 
-export function isImage(fileName: string) {
+export function getFileType(fileName: string) {
+	const index = fileName.lastIndexOf(".");
+	if (index === -1) {
+		return "attachment";
+	}
+
+	const fileExtension = fileName.substring(index + 1);
+	if (fileExtension === "md") {
+		return "md";
+	}
+
+	if (fileExtension === "pdf") {
+		return "pdf";
+	}
+
 	const imageExtensions = [
 		"jpg",
 		"jpeg",
@@ -159,11 +176,26 @@ export function isImage(fileName: string) {
 		"bmp",
 		"ico",
 	];
-
-	const index = fileName.lastIndexOf(".");
-	if (index === -1) {
-		return false;
+	if (imageExtensions.includes(fileExtension)) {
+		return "image";
 	}
-	const fileExtension = fileName.substring(index + 1);
-	return imageExtensions.includes(fileExtension);
+
+	return "attachment";
+}
+
+export async function createDummyPdf(
+	app: App,
+	note: TFile,
+	fileInfo: FileInfo
+) {
+	const filePath = await app.fileManager.getAvailablePathForAttachment(
+		fileInfo.fileName,
+		note.path
+	);
+	const file = await app.vault.create(filePath, fileInfo.url);
+	let link = app.fileManager.generateMarkdownLink(file, filePath);
+	if (link[0] !== "!") {
+		link = "!" + link;
+	}
+	return link;
 }

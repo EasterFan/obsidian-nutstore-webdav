@@ -4,10 +4,11 @@ import {
 	getFileByPath,
 	getFormatVariables,
 	ImageLinkInfo,
-	isImage,
+	getFileType,
 	isLocalPath,
 	matchImageLinks,
 	noticeError,
+    createDummyPdf,
 } from "./utils";
 import WebDavImageUploaderPlugin from "./main";
 import { FileInfo } from "./webdavClient";
@@ -178,7 +179,16 @@ export class BatchUploader {
 					fileInfo = await this.plugin.client.uploadFile(file, path);
 				}
 
-				const newLink = fileInfo.toMarkdownLink();
+				let newLink;
+				if (
+					this.plugin.settings.enableDummyPdf &&
+					getFileType(fileInfo.fileName) === "pdf"
+				) {
+					newLink = await createDummyPdf(this.plugin.app, note, fileInfo);
+				} else {
+					newLink = fileInfo.toMarkdownLink();
+				}
+
 				newContent =
 					newContent.substring(0, link.start) +
 					newLink +
@@ -318,7 +328,7 @@ export class BatchDownloader {
 					file.path
 				);
 
-				if (isImage(link.path) && newLink[0] !== "!") {
+				if (getFileType(link.path) === "image" && newLink[0] !== "!") {
 					newLink = `!${newLink}`;
 				}
 

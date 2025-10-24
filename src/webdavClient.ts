@@ -1,6 +1,6 @@
 import { requestUrl, RequestUrlParam, RequestUrlResponse } from "obsidian";
 import WebDavImageUploaderPlugin from "./main";
-import { getToken, isImage } from "./utils";
+import { getToken, getFileType } from "./utils";
 
 export class WebDavClient {
 	plugin: WebDavImageUploaderPlugin;
@@ -89,7 +89,7 @@ export class FileInfo {
 	}
 
 	toMarkdownLink(): string {
-		return isImage(this.fileName)
+		return getFileType(this.fileName) === "image"
 			? `![${this.fileName}](${this.url})`
 			: `[${this.fileName}](${this.url})`;
 	}

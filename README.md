@@ -23,6 +23,7 @@ In the Plugin Settings -> Commands, some buttons are provided for batch uploadin
 In the file explorer, you can:
 
 - Right-click on a file, and upload/download all images in this file to/from WebDAV.
+- Right-click on a folder(attachment folder), and upload all images in this folder to WebDAV.
 - Right-click on a folder, and upload/download all images in this folder's notes to/from WebDAV (including subfolders).
 
 ### Batch Process Log

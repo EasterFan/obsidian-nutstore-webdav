@@ -19,8 +19,8 @@ import {
 	isLocalPath,
 	noticeError,
 	replaceLink,
-	getSelectedImageLink,
-	ImageLinkInfo,
+	getSelectedLink,
+	LinkInfo,
 } from "./utils";
 import {
 	DEFAULT_SETTINGS,
@@ -191,7 +191,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 	}
 
 	async onRightClickLink(menu: Menu, editor: Editor) {
-		const selectedImageLink = getSelectedImageLink(editor);
+		const selectedImageLink = getSelectedLink(editor);
 		if (selectedImageLink == null) {
 			return;
 		}
@@ -333,7 +333,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 
 	async onDownloadFile(
 		lineNumber: number,
-		link: ImageLinkInfo,
+		link: LinkInfo,
 		editor: Editor
 	) {
 		const notice = new Notice(`Downloading file '${link.path}'...`, 0);
@@ -373,7 +373,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 
 	async onUploadLocalFile(
 		lineNumber: number,
-		link: ImageLinkInfo,
+		link: LinkInfo,
 		editor: Editor
 	) {
 		const tFile = getFileByPath(this.app, link.path);
@@ -412,7 +412,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 
 	async onDeleteFile(
 		lineNumber: number,
-		link: ImageLinkInfo,
+		link: LinkInfo,
 		editor: Editor
 	) {
 		const notice = new Notice(`Deleting file '${link.path}'...`, 0);

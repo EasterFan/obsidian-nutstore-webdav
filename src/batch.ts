@@ -3,10 +3,10 @@ import {
 	formatPath,
 	getFileByPath,
 	getFormatVariables,
-	ImageLinkInfo,
+	LinkInfo,
 	getFileType,
 	isLocalPath,
-	matchImageLinks,
+	matchLinks,
 	noticeError,
 } from "./utils";
 import WebDavImageUploaderPlugin from "./main";
@@ -126,7 +126,7 @@ export class BatchUploader {
 		attachments?: Set<TAbstractFile>
 	) {
 		const content = await this.plugin.app.vault.read(note);
-		const links = matchImageLinks(content).filter(
+		const links = matchLinks(content).filter(
 			(link) =>
 				!this.plugin.isExcludeFile(link.path) &&
 				isLocalPath(link.path) &&
@@ -306,7 +306,7 @@ export class BatchDownloader {
 
 	async downloadNoteFiles(note: TFile) {
 		const content = await this.plugin.app.vault.read(note);
-		const links = matchImageLinks(content).filter(
+		const links = matchLinks(content).filter(
 			(link) =>
 				(!this.plugin.settings.enableDummyPdf ||
 					getFileType(link.path) !== "pdf") &&
@@ -436,7 +436,7 @@ export interface BatchProcessFileResult {
 
 	note: TFile;
 
-	link: ImageLinkInfo;
+	link: LinkInfo;
 
 	newLink?: string;
 }

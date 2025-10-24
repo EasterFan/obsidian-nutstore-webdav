@@ -3,12 +3,9 @@ import {
 	Editor,
 	MarkdownView,
 	Notice,
-	TFile,
 	moment,
 	normalizePath,
 } from "obsidian";
-import { FileInfo } from "./webdavClient";
-import { arrayBuffer } from "stream/consumers";
 
 // replace {{ key }} and {{ key:format }} with variables
 export function formatPath(
@@ -35,7 +32,7 @@ export function formatPath(
 		return match;
 	});
 
-	// normallizePath() is always contains no leading `/`
+	// normalizePath() is always contains no leading `/`
 	return "/" + normalizePath(result);
 }
 
@@ -66,7 +63,7 @@ export type FormatVariables = ReturnType<typeof getFormatVariables>;
 export function replaceLink(
 	editor: Editor,
 	lineNumber: number,
-	link: ImageLinkInfo,
+	link: LinkInfo,
 	newLink?: string
 ) {
 	const line = editor.getLine(lineNumber);
@@ -83,22 +80,22 @@ export function getFileByPath(app: App, path: string) {
 	return app.metadataCache.getFirstLinkpathDest(path, "");
 }
 
-// get image link currently selected
-export function getSelectedImageLink(editor: Editor) {
+// get link currently selected
+export function getSelectedLink(editor: Editor) {
 	const cursor = editor.getCursor();
 	const line = editor.getLine(cursor.line);
-	const links = matchImageLinks(line);
+	const links = matchLinks(line);
 	return links.find(
 		(link) => link.start <= cursor.ch && link.end >= cursor.ch
 	);
 }
 
-// get all image links in line
-export function matchImageLinks(line: string): ImageLinkInfo[] {
+// get all links in line
+export function matchLinks(content: string): LinkInfo[] {
 	// !?[$1]($2)|!?[[$3|$4]] - markdown or wikilink
 	const regex =
 		/(?:!?\[(.*?)\]\((.*?)\))|(?:!?\[\[([^|\]]+?)(?:\|(.*?))?\]\])/g;
-	const matches = line.matchAll(regex);
+	const matches = content.matchAll(regex);
 	return (
 		Array.from(matches)
 			.map((match) => {
@@ -126,7 +123,7 @@ export function matchImageLinks(line: string): ImageLinkInfo[] {
 	);
 }
 
-export interface ImageLinkInfo {
+export interface LinkInfo {
 	start: number;
 	end: number;
 	name: string;

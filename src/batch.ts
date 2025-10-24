@@ -1,4 +1,4 @@
-import { App, Notice, TFile, TFolder, moment } from "obsidian";
+import { App, Notice, TAbstractFile, TFile, TFolder, moment } from "obsidian";
 import {
 	formatPath,
 	getFileByPath,
@@ -10,20 +10,45 @@ import {
 	noticeError,
 } from "./utils";
 import WebDavImageUploaderPlugin from "./main";
+import { FileInfo } from "./webdavClient";
 
 export class BatchUploader {
 	plugin: WebDavImageUploaderPlugin;
 
+	uploadedFiles: Map<TFile, FileInfo> = new Map();
+
 	result: BatchProcessFileResult[] = [];
+	deleteErrors: { file: TFile; error: string }[] = [];
 
 	constructor(plugin: WebDavImageUploaderPlugin) {
 		this.plugin = plugin;
 	}
 
 	async createLog() {
-		if (this.plugin.settings.createBatchLog) {
-			await createBatchLog(this.plugin.app, this.result);
+		if (!this.plugin.settings.createBatchLog) {
+			return;
 		}
+
+		await createBatchLog(
+			this.plugin.app,
+			this.result,
+			async (content: string) => {
+				content += `\n\n## Failed to Delete Local Files\n\n`;
+
+				const headers = ["File", "Error Message"];
+				const headerRow = `| ${headers.join(" | ")} |`;
+				const separatorRow = `| ${headers
+					.map(() => "---")
+					.join(" | ")} |`;
+				content += headerRow + "\n" + separatorRow + "\n";
+
+				for (const { file, error } of this.deleteErrors) {
+					content += `| ${file.path} | ${error} |\n`;
+				}
+
+				return content;
+			}
+		);
 	}
 
 	async uploadVaultFiles() {
@@ -46,7 +71,7 @@ export class BatchUploader {
 			);
 
 			try {
-				await this.uploadNoteFiles(note);
+				await this.uploadNoteFiles(note, false);
 			} catch (e) {
 				noticeError(`Failed to upload files from '${note.path}', ${e}`);
 			}
@@ -55,9 +80,50 @@ export class BatchUploader {
 		new Notice(`All files uploaded finished.`);
 
 		notice.hide();
+
+		this.deleteUploadedFiles();
 	}
 
-	async uploadNoteFiles(note: TFile) {
+	async uploadAttachments(folder: TFolder) {
+		const attachments = folder.children.filter(
+			(file) =>
+				file instanceof TFile && !this.plugin.isExcludeFile(file.path)
+		);
+		const noteAttachmentsMap = getNotesByAttachments(
+			attachments,
+			this.plugin.app
+		);
+
+		const notice = new Notice("", 0);
+
+		let count = 1;
+		const total = noteAttachmentsMap.size;
+		for (const { note, attachments } of noteAttachmentsMap.values()) {
+			notice.setMessage(
+				`Uploading attachments in '${
+					note.path
+				}'\n${count++}/${total}...`
+			);
+
+			try {
+				await this.uploadNoteFiles(note, false, attachments);
+			} catch (e) {
+				noticeError(`Failed to upload files from '${note.path}', ${e}`);
+			}
+		}
+
+		new Notice(`All files uploaded finished.`);
+
+		notice.hide();
+
+		this.deleteUploadedFiles();
+	}
+
+	async uploadNoteFiles(
+		note: TFile,
+		deleteAfterUpload: boolean,
+		attachments?: Set<TAbstractFile>
+	) {
 		const content = await this.plugin.app.vault.read(note);
 		const links = matchImageLinks(content).filter(
 			(link) =>
@@ -89,23 +155,30 @@ export class BatchUploader {
 					continue;
 				}
 
-				notice.setMessage(
-					`Uploading '${tFile.path}'\n${count}/${total}...`
-				);
+				if (attachments != null && !attachments.has(tFile)) {
+					continue;
+				}
 
-				const buffer = await this.plugin.app.vault.readBinary(tFile);
-				const file = new File([buffer], tFile.name, {
-					lastModified: tFile.stat.mtime,
-				});
+				let fileInfo = this.uploadedFiles.get(tFile);
+				if (fileInfo == null) {
+					notice.setMessage(
+						`Uploading '${tFile.path}'\n${count}/${total}...`
+					);
 
-				const vars = getFormatVariables(file, tFile);
-				const path = formatPath(this.plugin.settings.format, vars);
+					const buffer = await this.plugin.app.vault.readBinary(
+						tFile
+					);
+					const file = new File([buffer], tFile.name, {
+						lastModified: tFile.stat.mtime,
+					});
 
-				const data = await this.plugin.client.uploadFile(file, path);
-				const newLink = data.toMarkdownLink();
+					const vars = getFormatVariables(file, tFile);
+					const path = formatPath(this.plugin.settings.format, vars);
 
-				await this.plugin.deleteLocalFile(tFile);
+					fileInfo = await this.plugin.client.uploadFile(file, path);
+				}
 
+				const newLink = fileInfo.toMarkdownLink();
 				newContent =
 					newContent.substring(0, link.start) +
 					newLink +
@@ -114,8 +187,10 @@ export class BatchUploader {
 					success: true,
 					note,
 					link: link,
-					newLink: data.url,
+					newLink: fileInfo.url,
 				});
+
+				this.uploadedFiles.set(tFile, fileInfo);
 			} catch (e) {
 				const message = `Failed to upload file '${link.path}' from ${note.path}, ${e}`;
 				this.result.push({
@@ -133,6 +208,32 @@ export class BatchUploader {
 		}
 
 		notice.hide();
+
+		if (deleteAfterUpload) {
+			this.deleteUploadedFiles();
+		}
+	}
+
+	async deleteUploadedFiles() {
+		const notice = new Notice("", 0);
+
+		const total = this.uploadedFiles.size;
+		let count = 1;
+		for (const file of this.uploadedFiles.keys()) {
+			try {
+				notice.setMessage(
+					`Deleting local file '${file.path}'\n${count++}/${total}...`
+				);
+
+				await this.plugin.deleteLocalFile(file);
+			} catch (e) {
+				const message = `Failed to delete local file '${file.path}', ${e}`;
+				noticeError(message);
+				this.deleteErrors.push({ file, error: message });
+			}
+		}
+
+		notice.hide();
 	}
 }
 
@@ -146,9 +247,10 @@ export class BatchDownloader {
 	}
 
 	async createLog() {
-		if (this.plugin.settings.createBatchLog) {
-			await createBatchLog(this.plugin.app, this.result);
+		if (!this.plugin.settings.createBatchLog) {
+			return;
 		}
+		await createBatchLog(this.plugin.app, this.result);
 	}
 
 	async downloadVaultFiles() {
@@ -263,6 +365,36 @@ function getMarkdownFilesInFolder(folder: TFolder) {
 	return files;
 }
 
+// Obsidian has an internal `app.metadataCache.getBacklinksForFile` can be used to get backlinks to a specific file,
+// see: https://github.com/mnaoumov/obsidian-backlink-cache
+// but I think it is not necessary to use this here, even though it may be more efficient
+function getNotesByAttachments(attachments: TAbstractFile[], app: App) {
+	const noteAttachmentsMap = new Map<
+		string,
+		{ note: TFile; attachments: Set<TAbstractFile> }
+	>();
+	const resolvedLinks = app.metadataCache.resolvedLinks;
+	for (const [notePath, links] of Object.entries(resolvedLinks)) {
+		for (const link in links) {
+			for (const attachment of attachments) {
+				if (link === attachment.path) {
+					let data = noteAttachmentsMap.get(notePath);
+					if (data == null) {
+						data = {
+							note: getFileByPath(app, notePath)!,
+							attachments: new Set(),
+						};
+						noteAttachmentsMap.set(notePath, data);
+					}
+					data.attachments.add(attachment);
+				}
+			}
+		}
+	}
+
+	return noteAttachmentsMap;
+}
+
 export interface BatchProcessFileResult {
 	success: boolean;
 
@@ -277,12 +409,9 @@ export interface BatchProcessFileResult {
 
 export async function createBatchLog(
 	app: App,
-	results: BatchProcessFileResult[]
+	results: BatchProcessFileResult[],
+	appendLog?: (content: string) => Promise<string>
 ) {
-	if (results.length === 0) {
-		return;
-	}
-
 	const logPath = `webdav-batch-log-${moment().format("YYYYMMDD-HHmmss")}.md`;
 
 	const noteResults = results.reduce((map, result) => {
@@ -292,14 +421,14 @@ export async function createBatchLog(
 		return map;
 	}, new Map<TFile, BatchProcessFileResult[]>());
 
-	let content = "";
+	let content = "## Processed Notes\n\n";
 
 	const headers = ["Status", "Original Link", "New Link", "Error Message"];
 	const headerRow = `| ${headers.join(" | ")} |`;
 	const separatorRow = `| ${headers.map(() => "---").join(" | ")} |`;
 
 	for (const [note, results] of noteResults) {
-		content += `## ${app.fileManager.generateMarkdownLink(
+		content += `### ${app.fileManager.generateMarkdownLink(
 			note,
 			logPath,
 			undefined,
@@ -316,6 +445,10 @@ export async function createBatchLog(
 		}
 	}
 
+	if (appendLog) {
+		content = await appendLog(content);
+	}
+
 	let file = getFileByPath(app, logPath);
 	if (file != null) {
 		app.vault.modify(file, content);
@@ -324,4 +457,5 @@ export async function createBatchLog(
 	}
 
 	app.workspace.getLeaf(true).openFile(file);
+	return file;
 }

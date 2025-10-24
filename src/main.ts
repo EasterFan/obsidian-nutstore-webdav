@@ -245,7 +245,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 					.onClick(() => {
 						modal.onSubmit = async () => {
 							const uploader = new BatchUploader(this);
-							await uploader.uploadNoteFiles(file);
+							await uploader.uploadNoteFiles(file, true);
 							await uploader.createLog();
 						};
 						modal.open();
@@ -267,6 +267,19 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		}
 
 		if (file instanceof TFolder) {
+			menu.addItem((item) =>
+				item
+					.setTitle("Upload attachments to WebDAV")
+					.setIcon("arrow-up-from-line")
+					.onClick(() => {
+						modal.onSubmit = async () => {
+							const uploader = new BatchUploader(this);
+							await uploader.uploadAttachments(file);
+							await uploader.createLog();
+						};
+						modal.open();
+					})
+			);
 			menu.addItem((item) =>
 				item
 					.setTitle("Upload files in folder's notes to WebDAV")

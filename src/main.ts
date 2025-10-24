@@ -15,13 +15,12 @@ import {
 	getCurrentEditor,
 	getFileByPath,
 	getFormatVariables,
-	getSelectedImageLink,
-	ImageLinkInfo,
 	getFileType,
 	isLocalPath,
 	noticeError,
 	replaceLink,
-	createDummyPdf,
+	getSelectedImageLink,
+	ImageLinkInfo,
 } from "./utils";
 import {
 	DEFAULT_SETTINGS,
@@ -30,6 +29,7 @@ import {
 } from "./settings";
 import { BatchDownloader, BatchUploader } from "./batch";
 import { ConfirmModal } from "./modals/confirmModal";
+import { DummyPdf } from "./dummyPdf";
 
 export default class WebDavImageUploaderPlugin extends Plugin {
 	settings: WebDavImageUploaderSettings;
@@ -176,7 +176,8 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 				this.settings.enableDummyPdf &&
 				getFileType(data.fileName) === "pdf"
 			) {
-				link = await createDummyPdf(this.app, activeFile, data);
+				const file = await DummyPdf.create(this.app, activeFile, data);
+				link = file.getLink(this.app);
 			} else {
 				link = data.toMarkdownLink();
 			}
@@ -190,13 +191,20 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 	}
 
 	async onRightClickLink(menu: Menu, editor: Editor) {
-		const selectedImage = getSelectedImageLink(editor);
-		if (selectedImage == null) {
+		const selectedImageLink = getSelectedImageLink(editor);
+		if (selectedImageLink == null) {
 			return;
 		}
 
-		const isWebdavLink = this.isWebdavUrl(selectedImage.path);
-		const isLocalImage = !isWebdavLink && isLocalPath(selectedImage.path);
+		let isWebdavLink = this.isWebdavUrl(selectedImageLink.path);
+		let isLocal = !isWebdavLink && isLocalPath(selectedImageLink.path);
+
+		// assume pdf file is dummy pdf if `enableDummyPdf` is true
+		const type = getFileType(selectedImageLink.path);
+		if (isLocal && this.settings.enableDummyPdf && type === "pdf") {
+			isWebdavLink = true;
+			isLocal = false;
+		}
 
 		const lineNumber = editor.getCursor().line;
 
@@ -206,7 +214,11 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 					.setTitle("Download file from WebDAV")
 					.setIcon("arrow-down-from-line")
 					.onClick(() =>
-						this.onDownloadFile(lineNumber, selectedImage, editor)
+						this.onDownloadFile(
+							lineNumber,
+							selectedImageLink,
+							editor
+						)
 					)
 			);
 
@@ -215,13 +227,13 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 					.setTitle("Delete file from WebDAV")
 					.setIcon("trash")
 					.onClick(() =>
-						this.onDeleteFile(lineNumber, selectedImage, editor)
+						this.onDeleteFile(lineNumber, selectedImageLink, editor)
 					)
 			);
 		}
 
-		if (isLocalImage) {
-			if (this.isExcludeFile(selectedImage.path)) {
+		if (isLocal) {
+			if (this.isExcludeFile(selectedImageLink.path)) {
 				return;
 			}
 
@@ -232,7 +244,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 					.onClick(() =>
 						this.onUploadLocalFile(
 							lineNumber,
-							selectedImage,
+							selectedImageLink,
 							editor
 						)
 					)
@@ -326,15 +338,29 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 	) {
 		const notice = new Notice(`Downloading file '${link.path}'...`, 0);
 		try {
-			const file = await this.client.downloadFile(link.path);
+			let path;
+			const type = getFileType(link.path);
+			if (this.settings.enableDummyPdf && type === "pdf") {
+				const dummyPdf = new DummyPdf(link.path);
+				path = await dummyPdf.getUrl(this.app);
+			} else {
+				path = link.path;
+			}
+
+			const file = await this.client.downloadFile(path);
 
 			let newLink = this.app.fileManager.generateMarkdownLink(
 				file,
 				file.path
 			);
 
-			if (getFileType(link.path) === "image" && newLink[0] !== "!") {
+			if (type === "image" && newLink[0] !== "!") {
 				newLink = `!${newLink}`;
+			}
+
+			if (this.settings.enableDummyPdf && type === "pdf") {
+				const dummyPdf = new DummyPdf(link.path);
+				await dummyPdf.delete(this.app);
 			}
 
 			replaceLink(editor, lineNumber, link, newLink);

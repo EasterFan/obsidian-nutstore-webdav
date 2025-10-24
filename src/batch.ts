@@ -8,10 +8,10 @@ import {
 	isLocalPath,
 	matchImageLinks,
 	noticeError,
-    createDummyPdf,
 } from "./utils";
 import WebDavImageUploaderPlugin from "./main";
 import { FileInfo } from "./webdavClient";
+import { DummyPdf } from "./dummyPdf";
 
 export class BatchUploader {
 	plugin: WebDavImageUploaderPlugin;
@@ -128,7 +128,10 @@ export class BatchUploader {
 		const content = await this.plugin.app.vault.read(note);
 		const links = matchImageLinks(content).filter(
 			(link) =>
-				!this.plugin.isExcludeFile(link.path) && isLocalPath(link.path)
+				!this.plugin.isExcludeFile(link.path) &&
+				isLocalPath(link.path) &&
+				(this.plugin.settings.enableDummyPdf ||
+					getFileType(link.path) !== "pdf")
 		);
 		const total = links.length;
 		if (total === 0) {
@@ -184,7 +187,12 @@ export class BatchUploader {
 					this.plugin.settings.enableDummyPdf &&
 					getFileType(fileInfo.fileName) === "pdf"
 				) {
-					newLink = await createDummyPdf(this.plugin.app, note, fileInfo);
+					const file = await DummyPdf.create(
+						this.plugin.app,
+						note,
+						fileInfo
+					);
+					newLink = file.getLink(this.plugin.app);
 				} else {
 					newLink = fileInfo.toMarkdownLink();
 				}
@@ -300,6 +308,8 @@ export class BatchDownloader {
 		const content = await this.plugin.app.vault.read(note);
 		const links = matchImageLinks(content).filter(
 			(link) =>
+				(!this.plugin.settings.enableDummyPdf ||
+					getFileType(link.path) !== "pdf") &&
 				!this.plugin.isExcludeFile(link.path) &&
 				this.plugin.isWebdavUrl(link.path)
 		);
@@ -318,8 +328,17 @@ export class BatchDownloader {
 					`Downloading '${link.path}'\n${count++}/${total}...`
 				);
 
+				let path;
+				const type = getFileType(link.path);
+				if (this.plugin.settings.enableDummyPdf && type === "pdf") {
+					const dummyPdf = new DummyPdf(link.path);
+					path = await dummyPdf.getUrl(this.plugin.app);
+				} else {
+					path = link.path;
+				}
+
 				const file = await this.plugin.client.downloadFile(
-					link.path,
+					path,
 					note.path
 				);
 
@@ -343,6 +362,11 @@ export class BatchDownloader {
 					link: link,
 					newLink: file.path,
 				});
+
+				if (this.plugin.settings.enableDummyPdf && type === "pdf") {
+					const dummyPdf = new DummyPdf(link.path);
+					await dummyPdf.delete(this.plugin.app);
+				}
 			} catch (e) {
 				const message = `Failed to download file '${link.path}' from ${note.path}, ${e}`;
 				this.result.push({

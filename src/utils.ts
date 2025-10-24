@@ -182,20 +182,3 @@ export function getFileType(fileName: string) {
 
 	return "attachment";
 }
-
-export async function createDummyPdf(
-	app: App,
-	note: TFile,
-	fileInfo: FileInfo
-) {
-	const filePath = await app.fileManager.getAvailablePathForAttachment(
-		fileInfo.fileName,
-		note.path
-	);
-	const file = await app.vault.create(filePath, fileInfo.url);
-	let link = app.fileManager.generateMarkdownLink(file, filePath);
-	if (link[0] !== "!") {
-		link = "!" + link;
-	}
-	return link;
-}

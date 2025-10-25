@@ -11,12 +11,7 @@ import {
 import { WebDavClient } from "./webdavClient";
 import { createWebDavImageExtension, WebDavImageLoader } from "./imageLoader";
 import {
-	formatPath,
 	getCurrentEditor,
-	getFileByPath,
-	getFormatVariables,
-	getFileType,
-	isLocalPath,
 	noticeError,
 	replaceLink,
 	getSelectedLink,
@@ -29,7 +24,7 @@ import {
 } from "./settings";
 import { BatchDownloader, BatchUploader } from "./batch";
 import { ConfirmModal } from "./modals/confirmModal";
-import { DummyPdf } from "./dummyPdf";
+import { Link, createLink } from "./link";
 
 export default class WebDavImageUploaderPlugin extends Plugin {
 	settings: WebDavImageUploaderSettings;
@@ -167,22 +162,11 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		const notice = new Notice(`Uploading file: '${file.name}'...`, 0);
 		try {
 			const activeFile = this.app.workspace.getActiveFile()!;
-			const vars = getFormatVariables(file, activeFile);
-			const path = formatPath(this.settings.format, vars);
-			const data = await this.client.uploadFile(file, path);
+			const link = createLink(this, file);
 
-			let link;
-			if (
-				this.settings.enableDummyPdf &&
-				getFileType(data.fileName) === "pdf"
-			) {
-				const file = await DummyPdf.create(this.app, activeFile, data);
-				link = file.getLink(this.app);
-			} else {
-				link = data.toMarkdownLink();
-			}
+			const fileInfo = await link.upload(activeFile);
 
-			editor.replaceSelection(link);
+			editor.replaceSelection(fileInfo.markdownLink);
 		} catch (e) {
 			noticeError(`Failed to upload file: '${file.name}', ${e}`);
 		}
@@ -190,35 +174,27 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		notice.hide();
 	}
 
-	async onRightClickLink(menu: Menu, editor: Editor) {
-		const selectedImageLink = getSelectedLink(editor);
-		if (selectedImageLink == null) {
+	onRightClickLink(menu: Menu, editor: Editor) {
+		const selectedLink = getSelectedLink(editor);
+		if (selectedLink == null) {
 			return;
 		}
 
-		let isWebdavLink = this.isWebdavUrl(selectedImageLink.path);
-		let isLocal = !isWebdavLink && isLocalPath(selectedImageLink.path);
-
-		// assume pdf file is dummy pdf if `enableDummyPdf` is true
-		const type = getFileType(selectedImageLink.path);
-		if (isLocal && this.settings.enableDummyPdf && type === "pdf") {
-			isWebdavLink = true;
-			isLocal = false;
-		}
+		// BUG: menu events can't running asynchronously (see: https://forum.obsidian.md/t/menu-additem-support-asynchronous-callback-functions/52870)
+		// so we can't get the actual link info if it needs to be initialized by async function
+		// for example, we can not check whether it is a dummy pdf or normal pdf when right-clicking a local `.pdf` link
+		// since it needs to read the file content
+		// for now, it always shows both upload and download items, and throws the error when actually processing
+		const link = createLink(this, selectedLink);
 
 		const lineNumber = editor.getCursor().line;
-
-		if (isWebdavLink) {
+		if (link.downloadable()) {
 			menu.addItem((item) =>
 				item
 					.setTitle("Download file from WebDAV")
 					.setIcon("arrow-down-from-line")
 					.onClick(() =>
-						this.onDownloadFile(
-							lineNumber,
-							selectedImageLink,
-							editor
-						)
+						this.onDownloadFile(lineNumber, link, editor)
 					)
 			);
 
@@ -226,27 +202,17 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 				item
 					.setTitle("Delete file from WebDAV")
 					.setIcon("trash")
-					.onClick(() =>
-						this.onDeleteFile(lineNumber, selectedImageLink, editor)
-					)
+					.onClick(() => this.onDeleteFile(lineNumber, link, editor))
 			);
 		}
 
-		if (isLocal) {
-			if (this.isExcludeFile(selectedImageLink.path)) {
-				return;
-			}
-
+		if (link.uploadable()) {
 			menu.addItem((item) =>
 				item
 					.setTitle("Upload file to WebDAV")
 					.setIcon("arrow-up-from-line")
 					.onClick(() =>
-						this.onUploadLocalFile(
-							lineNumber,
-							selectedImageLink,
-							editor
-						)
+						this.onUploadLocalFile(lineNumber, link, editor)
 					)
 			);
 		}
@@ -333,39 +299,18 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 
 	async onDownloadFile(
 		lineNumber: number,
-		link: LinkInfo,
+		link: Link<LinkInfo>,
 		editor: Editor
 	) {
-		const notice = new Notice(`Downloading file '${link.path}'...`, 0);
+		const linkInfo = link.data;
+
+		const notice = new Notice(`Downloading file '${linkInfo.path}'...`, 0);
 		try {
-			let path;
-			const type = getFileType(link.path);
-			if (this.settings.enableDummyPdf && type === "pdf") {
-				const dummyPdf = new DummyPdf(link.path);
-				path = await dummyPdf.getUrl(this.app);
-			} else {
-				path = link.path;
-			}
-
-			const file = await this.client.downloadFile(path);
-
-			let newLink = this.app.fileManager.generateMarkdownLink(
-				file,
-				file.path
-			);
-
-			if (type === "image" && newLink[0] !== "!") {
-				newLink = `!${newLink}`;
-			}
-
-			if (this.settings.enableDummyPdf && type === "pdf") {
-				const dummyPdf = new DummyPdf(link.path);
-				await dummyPdf.delete(this.app);
-			}
-
-			replaceLink(editor, lineNumber, link, newLink);
+			const activeFile = this.app.workspace.getActiveFile()!;
+			const newLink = await link.download(activeFile);
+			replaceLink(editor, lineNumber, linkInfo, newLink.markdownLink);
 		} catch (e) {
-			noticeError(`Failed to download '${link.path}', ${e}`);
+			noticeError(`Failed to download '${linkInfo.path}', ${e}`);
 		}
 
 		notice.hide();
@@ -373,38 +318,23 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 
 	async onUploadLocalFile(
 		lineNumber: number,
-		link: LinkInfo,
+		link: Link<LinkInfo>,
 		editor: Editor
 	) {
-		const tFile = getFileByPath(this.app, link.path);
-		if (tFile == null) {
-			new Notice(`'${link.path}' not found.`);
-			return;
-		}
+		const linkInfo = link.data;
 
-		const notice = new Notice(`Uploading file '${tFile.name}'...`, 0);
+		const notice = new Notice(`Uploading file '${linkInfo.path}'...`, 0);
 		try {
-			const buffer = await this.app.vault.readBinary(tFile);
-			const file = new File([buffer], tFile.name, {
-				lastModified: tFile.stat.mtime,
-			});
+			const activeFile = this.app.workspace.getActiveFile()!;
+			const fileInfo = await link.upload(activeFile);
 
-			const vars = getFormatVariables(
-				file,
-				this.app.workspace.getActiveFile()!
-			);
-			const path = formatPath(this.settings.format, vars);
+			await this.deleteLocalFile(link.getTFile());
 
-			const data = await this.client.uploadFile(file, path);
+			replaceLink(editor, lineNumber, linkInfo, fileInfo.markdownLink);
 
-			await this.deleteLocalFile(tFile);
-
-			const newLink = data.toMarkdownLink();
-			replaceLink(editor, lineNumber, link, newLink);
-
-			new Notice(`File '${tFile.name}' uploaded successfully`);
+			new Notice(`File '${linkInfo.path}' uploaded successfully.`);
 		} catch (e) {
-			noticeError(`Failed to upload file '${tFile.name}', ${e}`);
+			noticeError(`Failed to upload file '${linkInfo.path}', ${e}`);
 		}
 
 		notice.hide();
@@ -412,15 +342,18 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 
 	async onDeleteFile(
 		lineNumber: number,
-		link: LinkInfo,
+		link: Link<LinkInfo>,
 		editor: Editor
 	) {
-		const notice = new Notice(`Deleting file '${link.path}'...`, 0);
+		const linkInfo = link.data;
+
+		const notice = new Notice(`Deleting file '${linkInfo.path}'...`, 0);
 		try {
-			await this.client.deleteFile(link.path);
-			replaceLink(editor, lineNumber, link);
+			const activeFile = this.app.workspace.getActiveFile()!;
+			await link.delete(activeFile);
+			replaceLink(editor, lineNumber, linkInfo);
 		} catch (e) {
-			noticeError(`Failed to delete file '${link.path}', ${e}`);
+			noticeError(`Failed to delete file '${linkInfo.path}', ${e}`);
 		}
 
 		notice.hide();

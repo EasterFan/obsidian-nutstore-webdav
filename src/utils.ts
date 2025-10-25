@@ -179,3 +179,5 @@ export function getFileType(fileName: string) {
 
 	return "attachment";
 }
+
+export type FileType = ReturnType<typeof getFileType>;

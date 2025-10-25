@@ -10,13 +10,12 @@ import {
 	noticeError,
 } from "./utils";
 import WebDavImageUploaderPlugin from "./main";
-import { FileInfo } from "./webdavClient";
-import { DummyPdf } from "./dummyPdf";
+import { createLink, UploadFileInfo } from "./link";
 
 export class BatchUploader {
 	plugin: WebDavImageUploaderPlugin;
 
-	uploadedFiles: Map<TFile, FileInfo> = new Map();
+	uploadedFiles: Map<TFile, UploadFileInfo> = new Map();
 
 	result: BatchProcessFileResult[] = [];
 	deleteErrors: { file: TFile; error: string }[] = [];
@@ -142,80 +141,53 @@ export class BatchUploader {
 
 		let count = 0;
 		let newContent = content;
-		for (const link of links) {
+		for (const linkInfo of links) {
 			count += 1;
 
 			try {
-				const tFile = getFileByPath(this.plugin.app, link.path);
+				const tFile = getFileByPath(this.plugin.app, linkInfo.path);
 				if (tFile == null) {
-					const message = `File '${link.path}' not found in vault.`;
-					this.result.push({
-						success: false,
-						message,
-						note,
-						link: link,
-					});
-					console.warn(message);
-					continue;
+					throw new Error(`File not found in vault.`);
 				}
 
+				// only upload if specified in attachments
 				if (attachments != null && !attachments.has(tFile)) {
 					continue;
 				}
 
+				// skip if already uploaded(when the file has been link by multiple notes),
+				// and reuse the uploaded url
 				let fileInfo = this.uploadedFiles.get(tFile);
 				if (fileInfo == null) {
 					notice.setMessage(
 						`Uploading '${tFile.path}'\n${count}/${total}...`
 					);
 
-					const buffer = await this.plugin.app.vault.readBinary(
-						tFile
-					);
-					const file = new File([buffer], tFile.name, {
-						lastModified: tFile.stat.mtime,
-					});
-
-					const vars = getFormatVariables(file, tFile);
-					const path = formatPath(this.plugin.settings.format, vars);
-
-					fileInfo = await this.plugin.client.uploadFile(file, path);
+					const link = createLink(this.plugin, linkInfo)!;
+					fileInfo = await link.upload(note);
 				}
 
-				let newLink;
-				if (
-					this.plugin.settings.enableDummyPdf &&
-					getFileType(fileInfo.fileName) === "pdf"
-				) {
-					const file = await DummyPdf.create(
-						this.plugin.app,
-						note,
-						fileInfo
-					);
-					newLink = file.getLink(this.plugin.app);
-				} else {
-					newLink = fileInfo.toMarkdownLink();
+				if (linkInfo.raw !== fileInfo.markdownLink) {
+					newContent =
+						newContent.substring(0, linkInfo.start) +
+						fileInfo.markdownLink +
+						newContent.substring(linkInfo.end);
 				}
-
-				newContent =
-					newContent.substring(0, link.start) +
-					newLink +
-					newContent.substring(link.end);
 				this.result.push({
 					success: true,
 					note,
-					link: link,
+					link: linkInfo,
 					newLink: fileInfo.url,
 				});
 
 				this.uploadedFiles.set(tFile, fileInfo);
 			} catch (e) {
-				const message = `Failed to upload file '${link.path}' from ${note.path}, ${e}`;
+				const message = `Failed to upload file '${linkInfo.path}' from ${note.path}, ${e}`;
 				this.result.push({
 					success: false,
 					message,
 					note,
-					link: link,
+					link: linkInfo,
 				});
 				noticeError(message);
 			}
@@ -322,58 +294,36 @@ export class BatchDownloader {
 
 		let count = 1;
 		let newContent = content;
-		for (const link of links) {
+		for (const linkInfo of links) {
 			try {
 				notice.setMessage(
-					`Downloading '${link.path}'\n${count++}/${total}...`
+					`Downloading '${linkInfo.path}'\n${count++}/${total}...`
 				);
 
-				let path;
-				const type = getFileType(link.path);
-				if (this.plugin.settings.enableDummyPdf && type === "pdf") {
-					const dummyPdf = new DummyPdf(link.path);
-					path = await dummyPdf.getUrl(this.plugin.app);
-				} else {
-					path = link.path;
+				const link = createLink(this.plugin, linkInfo);
+
+				const newLink = await link.download(note);
+
+				if (linkInfo.raw !== newLink.markdownLink) {
+					newContent =
+						newContent.substring(0, linkInfo.start) +
+						newLink +
+						newContent.substring(linkInfo.end);
 				}
-
-				const file = await this.plugin.client.downloadFile(
-					path,
-					note.path
-				);
-
-				let newLink = this.plugin.app.fileManager.generateMarkdownLink(
-					file,
-					file.path
-				);
-
-				if (getFileType(link.path) === "image" && newLink[0] !== "!") {
-					newLink = `!${newLink}`;
-				}
-
-				newContent =
-					newContent.substring(0, link.start) +
-					newLink +
-					newContent.substring(link.end);
 
 				this.result.push({
 					success: true,
 					note,
-					link: link,
-					newLink: file.path,
+					link: linkInfo,
+					newLink: newLink.tFile.path,
 				});
-
-				if (this.plugin.settings.enableDummyPdf && type === "pdf") {
-					const dummyPdf = new DummyPdf(link.path);
-					await dummyPdf.delete(this.plugin.app);
-				}
 			} catch (e) {
-				const message = `Failed to download file '${link.path}' from ${note.path}, ${e}`;
+				const message = `Failed to download file '${linkInfo.path}' from ${note.path}, ${e}`;
 				this.result.push({
 					success: false,
 					message,
 					note,
-					link: link,
+					link: linkInfo,
 				});
 				noticeError(message);
 			}

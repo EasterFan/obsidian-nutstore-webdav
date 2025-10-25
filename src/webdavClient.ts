@@ -44,7 +44,7 @@ export class WebDavClient {
 			throw new Error(`Failed to upload file: '${file.name}'`);
 		}
 
-		return new FileInfo(file.name, this.getUrl(path));
+		return { fileName: file.name, url: this.getUrl(path) };
 	}
 
 	async testConnection() {
@@ -79,20 +79,9 @@ export class WebDavClient {
 	}
 }
 
-export class FileInfo {
+export interface FileInfo {
 	fileName: string;
 	url: string;
-
-	constructor(fileName: string, url: string) {
-		this.fileName = fileName;
-		this.url = url;
-	}
-
-	toMarkdownLink(): string {
-		return getFileType(this.fileName) === "image"
-			? `![${this.fileName}](${this.url})`
-			: `[${this.fileName}](${this.url})`;
-	}
 }
 
 /**

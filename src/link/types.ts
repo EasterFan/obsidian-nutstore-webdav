@@ -15,6 +15,8 @@ export interface Link<T extends LinkData> {
 
 	download(note: TFile): Promise<DownloadFileInfo>;
 
+	rename(note: TFile, newPath: string): Promise<string>;
+
     delete(note: TFile): Promise<void>;
 }
 

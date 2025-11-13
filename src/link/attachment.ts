@@ -29,8 +29,6 @@ export class AttachmentLink<T extends LinkData> implements Link<T> {
 		}
 	}
 
-	async init() {}
-
 	uploadable(): boolean {
 		if (this.linkType === "external") {
 			return false;
@@ -66,7 +64,7 @@ export class AttachmentLink<T extends LinkData> implements Link<T> {
 
 		if (this.data.path == null) {
 			throw new Error(
-				`Path is undefined for link with name '${this.data.name}'`
+				`Path is undefined for link with name '${this.data.name}'`,
 			);
 		}
 
@@ -83,7 +81,7 @@ export class AttachmentLink<T extends LinkData> implements Link<T> {
 			throw new Error(
 				`Cannot upload '${
 					this.data instanceof File ? this.data.name : this.data.path
-				}'`
+				}'`,
 			);
 		}
 
@@ -115,18 +113,32 @@ export class AttachmentLink<T extends LinkData> implements Link<T> {
 		}
 
 		this.tFile = await this.plugin.client.downloadFile(
-			(this.data as LinkInfo).path
+			(this.data as LinkInfo).path,
 		);
 
 		const markdownLink = this.plugin.app.fileManager.generateMarkdownLink(
 			this.tFile,
-			this.tFile.path
+			this.tFile.path,
 		);
 
 		return {
 			tFile: this.tFile,
 			markdownLink: markdownLink,
 		};
+	}
+
+	async rename(note: TFile, newPath: string): Promise<string> {
+		if (!this.downloadable()) {
+			throw new Error("File can not be renamed.");
+		}
+
+		const oldPath = this.plugin.client.getPath(
+			(this.data as LinkInfo).path,
+		);
+
+		await this.plugin.client.renameFile(oldPath, newPath);
+
+		return this.plugin.client.getUrl(newPath);
 	}
 
 	async delete(note: TFile) {

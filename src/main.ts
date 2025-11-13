@@ -25,6 +25,7 @@ import {
 import { BatchDownloader, BatchUploader } from "./batch";
 import { ConfirmModal } from "./modals/confirmModal";
 import { Link, createLink } from "./link";
+import { RenameModal } from "./modals/renameModal";
 
 export default class WebDavImageUploaderPlugin extends Plugin {
 	settings: WebDavImageUploaderSettings;
@@ -50,26 +51,26 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 
 		// upload file when pasted or dropped
 		this.registerEvent(
-			this.app.workspace.on("editor-paste", this.onUploadFile.bind(this))
+			this.app.workspace.on("editor-paste", this.onUploadFile.bind(this)),
 		);
 		this.registerEvent(
-			this.app.workspace.on("editor-drop", this.onUploadFile.bind(this))
+			this.app.workspace.on("editor-drop", this.onUploadFile.bind(this)),
 		);
 
 		// register right click menu items when clicking on image link
 		this.registerEvent(
 			this.app.workspace.on(
 				"editor-menu",
-				this.onRightClickLink.bind(this)
-			)
+				this.onRightClickLink.bind(this),
+			),
 		);
 		// on mobile platform, obsidian is not trigger `editor-menu` event on right-clicking the url,
 		// and trigger `url-menu` event instead
 		if (Platform.isMobile) {
 			this.registerEvent(
 				this.app.workspace.on("url-menu", (menu) =>
-					this.onRightClickLink(menu, getCurrentEditor(this.app)!)
-				)
+					this.onRightClickLink(menu, getCurrentEditor(this.app)!),
+				),
 			);
 		}
 
@@ -80,7 +81,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 				if (Platform.isMobile && source === "link-context-menu") {
 					return this.onRightClickLink(
 						menu,
-						getCurrentEditor(this.app)!
+						getCurrentEditor(this.app)!,
 					);
 				}
 
@@ -88,7 +89,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 				if (source === "file-explorer-context-menu") {
 					this.onRightClickExplorer(menu, file);
 				}
-			})
+			}),
 		);
 
 		// add basic authentication header when loading webdav images
@@ -98,7 +99,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 
 		console.log(
 			"WebDAV Image Uploader loaded, version:",
-			this.manifest.version
+			this.manifest.version,
 		);
 	}
 
@@ -110,7 +111,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
-			await this.loadData()
+			await this.loadData(),
 		);
 
 		if (this.client != null) {
@@ -129,7 +130,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		new Notice(
 			`Auto upload is ${
 				this.settings.enableUpload ? "enabled" : "disabled"
-			}.`
+			}.`,
 		);
 	}
 
@@ -194,15 +195,22 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 					.setTitle("Download file from WebDAV")
 					.setIcon("arrow-down-from-line")
 					.onClick(() =>
-						this.onDownloadFile(lineNumber, link, editor)
-					)
+						this.onDownloadFile(lineNumber, link, editor),
+					),
 			);
 
 			menu.addItem((item) =>
 				item
 					.setTitle("Delete file from WebDAV")
 					.setIcon("trash")
-					.onClick(() => this.onDeleteFile(lineNumber, link, editor))
+					.onClick(() => this.onDeleteFile(lineNumber, link, editor)),
+			);
+
+			menu.addItem((item) =>
+				item
+					.setTitle("Rename file from WebDAV")
+					.setIcon("pencil-line")
+					.onClick(() => this.onRenameFile(lineNumber, link, editor)),
 			);
 		}
 
@@ -212,8 +220,8 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 					.setTitle("Upload file to WebDAV")
 					.setIcon("arrow-up-from-line")
 					.onClick(() =>
-						this.onUploadLocalFile(lineNumber, link, editor)
-					)
+						this.onUploadLocalFile(lineNumber, link, editor),
+					),
 			);
 		}
 	}
@@ -237,7 +245,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 							await uploader.createLog();
 						};
 						modal.open();
-					})
+					}),
 			);
 			menu.addItem((item) =>
 				item
@@ -250,7 +258,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 							await downloader.createLog();
 						};
 						modal.open();
-					})
+					}),
 			);
 		}
 
@@ -266,7 +274,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 							await uploader.createLog();
 						};
 						modal.open();
-					})
+					}),
 			);
 			menu.addItem((item) =>
 				item
@@ -279,7 +287,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 							await uploader.createLog();
 						};
 						modal.open();
-					})
+					}),
 			);
 			menu.addItem((item) =>
 				item
@@ -292,7 +300,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 							await downloader.createLog();
 						};
 						modal.open();
-					})
+					}),
 			);
 		}
 	}
@@ -300,7 +308,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 	async onDownloadFile(
 		lineNumber: number,
 		link: Link<LinkInfo>,
-		editor: Editor
+		editor: Editor,
 	) {
 		const linkInfo = link.data;
 
@@ -319,7 +327,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 	async onUploadLocalFile(
 		lineNumber: number,
 		link: Link<LinkInfo>,
-		editor: Editor
+		editor: Editor,
 	) {
 		const linkInfo = link.data;
 
@@ -340,10 +348,51 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		notice.hide();
 	}
 
+	async onRenameFile(
+		lineNumber: number,
+		link: Link<LinkInfo>,
+		editor: Editor,
+	) {
+		const linkInfo = link.data;
+
+		const oldPath = this.client.getPath(linkInfo.path);
+		const renameModal = new RenameModal(this.app, {
+			title: "Rename file on WebDAV",
+			path: oldPath,
+			onConfirm: async (newPath: string) => {
+				const notice = new Notice(
+					`Renaming file '${linkInfo.path}' to '${newPath}'...`,
+					0,
+				);
+
+				try {
+					const activeFile = this.app.workspace.getActiveFile()!;
+					const newUrl = await link.rename(activeFile, newPath);
+					const markdownLink = linkInfo.raw.replace(
+						linkInfo.path,
+						newUrl,
+					);
+
+					replaceLink(editor, lineNumber, linkInfo, markdownLink);
+
+					new Notice(`File rename successfully.`);
+				} catch (e) {
+					noticeError(
+						`Failed to rename file '${linkInfo.path}', ${e}`,
+					);
+				}
+
+				notice.hide();
+			},
+		});
+
+		renameModal.open();
+	}
+
 	async onDeleteFile(
 		lineNumber: number,
 		link: Link<LinkInfo>,
-		editor: Editor
+		editor: Editor,
 	) {
 		const linkInfo = link.data;
 

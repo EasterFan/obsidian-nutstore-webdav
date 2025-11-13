@@ -1,6 +1,6 @@
 import { requestUrl, RequestUrlParam, RequestUrlResponse } from "obsidian";
 import WebDavImageUploaderPlugin from "./main";
-import { getToken, getFileType } from "./utils";
+import { getToken } from "./utils";
 
 export class WebDavClient {
 	plugin: WebDavImageUploaderPlugin;
@@ -17,7 +17,7 @@ export class WebDavClient {
 		this.client = new WebDavClientInner(
 			settings.url,
 			settings.username,
-			settings.password
+			settings.password,
 		);
 	}
 
@@ -30,7 +30,7 @@ export class WebDavClient {
 		const filePath =
 			await this.plugin.app.fileManager.getAvailablePathForAttachment(
 				fileName,
-				sourcePath
+				sourcePath,
 			);
 		return await this.plugin.app.vault.createBinary(filePath, resp);
 	}
@@ -45,6 +45,10 @@ export class WebDavClient {
 		}
 
 		return { fileName: file.name, url: this.getUrl(path) };
+	}
+
+	async renameFile(oldPath: string, newPath: string) {
+		await this.client.moveFile(oldPath, newPath, false);
 	}
 
 	async testConnection() {
@@ -106,25 +110,24 @@ class WebDavClientInner {
 		const encodedPath = this.encodePath(path);
 		const url = this.buildUrl(encodedPath);
 
-		try {
-			const response = await this.request({
-				url,
-				method: "PUT",
-				headers: { "Content-Type": "application/octet-stream" },
-				body: data,
-			});
-			this.handleResponseCode(response);
-		} catch (e) {
-			// parent directory not exists
-			if (e.message.includes("409")) {
-				await this.ensureDirectoryExists(
-					path.substring(0, path.lastIndexOf("/"))
-				);
+		const response = await this.request({
+			url,
+			method: "PUT",
+			headers: { "Content-Type": "application/octet-stream" },
+			body: data,
+		});
 
-				await this.putFileContents(path, data);
-			} else {
-				throw e;
-			}
+		// parent directory not exists
+		if (response.status === 409) {
+			await this.ensureDirectoryExists(
+				path.substring(0, path.lastIndexOf("/")),
+			);
+
+			await this.putFileContents(path, data);
+
+			return;
+		} else {
+			this.handleResponseCode(response);
 		}
 
 		return true;
@@ -144,6 +147,50 @@ class WebDavClientInner {
 		return response.arrayBuffer;
 	}
 
+	async moveFile(oldPath: string, newPath: string, overwrite = false) {
+		const url = this.buildUrl(this.encodePath(oldPath));
+
+		if (!overwrite) {
+			// BUG: `Overwite: 'F'` header may not working for some WebDAV server
+			// check the file manually
+			const exists = await this.exists(newPath);
+			if (exists) {
+				throw new Error(
+					`Destination file already exists: '${newPath}'`,
+				);
+			}
+		}
+
+		const newUrl = this.buildUrl(this.encodePath(newPath));
+
+		const response = await this.request({
+			url,
+			method: "MOVE",
+			headers: {
+				Destination: newUrl,
+				Overwrite: overwrite ? "T" : "F",
+			},
+		});
+
+		// parent directory not exists
+		if ([404, 409, 500].includes(response.status)) {
+			await this.ensureDirectoryExists(
+				newPath.substring(0, newPath.lastIndexOf("/")),
+			);
+			await this.moveFile(oldPath, newPath, overwrite);
+			return;
+		}
+
+		// file already exists
+		if (response.status === 412) {
+			throw new Error(`Destination file already exists: '${newPath}'`);
+		}
+
+		this.handleResponseCode(response);
+
+		return;
+	}
+
 	async deleteFile(path: string) {
 		const encodedPath = this.encodePath(path);
 		const url = this.buildUrl(encodedPath);
@@ -156,35 +203,52 @@ class WebDavClientInner {
 		this.handleResponseCode(response);
 	}
 
-	async createDirectory(path: string): Promise<void> {
+	async createDirectory(path: string): Promise<RequestUrlResponse> {
+		const encodedPath = this.encodePath(path);
+		const url = this.buildUrl(encodedPath);
+
+		return await this.request({
+			url,
+			method: "MKCOL",
+		});
+	}
+
+	async exists(path: string) {
 		const encodedPath = this.encodePath(path);
 		const url = this.buildUrl(encodedPath);
 
 		const response = await this.request({
 			url,
-			method: "MKCOL",
+			method: "HEAD",
 		});
 
+		if (response.status === 200) {
+			return true;
+		}
+
+		if (response.status === 404) {
+			return false;
+		}
+
 		this.handleResponseCode(response);
+
+		return false;
 	}
 
-	async ensureDirectoryExists(path: string): Promise<void> {
+	async ensureDirectoryExists(path: string) {
 		const directories = path.split("/").filter((dir) => dir !== "");
 		let currentPath = "";
 
 		for (const dir of directories) {
 			currentPath += "/" + dir;
-			try {
-				await this.createDirectory(currentPath);
-			} catch (e) {
-				if (e.message.includes("405") || e.message.includes("409")) {
-					// most webdav servers return 405/409 if the directory already exists
-					console.warn(
-						`Directory already exists or cannot be created: ${currentPath}`
-					);
-				} else {
-					throw e;
-				}
+			const response = await this.createDirectory(currentPath);
+			if ([405, 409].includes(response.status)) {
+				// most webdav servers return 405/409 if the directory already exists
+				console.warn(
+					`Directory already exists or cannot be created: ${currentPath}`,
+				);
+			} else {
+				this.handleResponseCode(response);
 			}
 		}
 	}
@@ -195,22 +259,19 @@ class WebDavClientInner {
 			method: string;
 			headers?: Record<string, string>;
 			body?: ArrayBuffer | string;
-		}
+		},
 	) {
 		const { method, headers = {}, body } = options;
 
 		const encodedPath = this.encodePath(path);
 		const url = this.buildUrl(encodedPath);
 
-		const response = await this.request({
+		return await this.request({
 			url,
 			method,
 			headers,
 			body,
 		});
-
-		this.handleResponseCode(response);
-		return response;
 	}
 
 	private buildUrl(path: string) {
@@ -243,6 +304,7 @@ class WebDavClientInner {
 				...headers,
 			},
 			body: body,
+			throw: false,
 		};
 
 		return await requestUrl(requestOptions);
@@ -251,9 +313,7 @@ class WebDavClientInner {
 	private handleResponseCode(response: RequestUrlResponse) {
 		if (response.status >= 400) {
 			throw new Error(
-				`WebDAV request failed: ${response.status} ${
-					response.text ?? "Unknown error"
-				}`
+				`${response.status} ${response.text ?? "Unknown error"}`,
 			);
 		}
 	}

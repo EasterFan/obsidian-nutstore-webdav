@@ -25,7 +25,7 @@ import {
 import { BatchDownloader, BatchUploader } from "./batch";
 import { ConfirmModal } from "./modals/confirmModal";
 import { Link, createLink } from "./link";
-import { RenameModal } from "./modals/renameModal";
+import { getRenamePath, RenameModal } from "./modals/renameModal";
 
 export default class WebDavImageUploaderPlugin extends Plugin {
 	settings: WebDavImageUploaderSettings;
@@ -310,6 +310,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		link: Link<LinkInfo>,
 		editor: Editor,
 	) {
+		await link.init();
 		const linkInfo = link.data;
 
 		const notice = new Notice(`Downloading file '${linkInfo.path}'...`, 0);
@@ -329,6 +330,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		link: Link<LinkInfo>,
 		editor: Editor,
 	) {
+		await link.init();
 		const linkInfo = link.data;
 
 		const notice = new Notice(`Uploading file '${linkInfo.path}'...`, 0);
@@ -353,40 +355,33 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		link: Link<LinkInfo>,
 		editor: Editor,
 	) {
+		await link.init();
 		const linkInfo = link.data;
 
 		const oldPath = this.client.getPath(linkInfo.path);
-		const renameModal = new RenameModal(this.app, {
-			title: "Rename file on WebDAV",
-			path: oldPath,
-			onConfirm: async (newPath: string) => {
-				const notice = new Notice(
-					`Renaming file '${linkInfo.path}' to '${newPath}'...`,
-					0,
-				);
+		const newPath = await getRenamePath(this.app, oldPath);
+		if (newPath == null) {
+			return;
+		}
 
-				try {
-					const activeFile = this.app.workspace.getActiveFile()!;
-					const newUrl = await link.rename(activeFile, newPath);
-					const markdownLink = linkInfo.raw.replace(
-						linkInfo.path,
-						newUrl,
-					);
+		const notice = new Notice(
+			`Renaming file '${linkInfo.path}' to '${newPath}'...`,
+			0,
+		);
 
-					replaceLink(editor, lineNumber, linkInfo, markdownLink);
+		try {
+			const activeFile = this.app.workspace.getActiveFile()!;
+			const newUrl = await link.rename(activeFile, newPath);
+			const markdownLink = linkInfo.raw.replace(linkInfo.path, newUrl);
 
-					new Notice(`File rename successfully.`);
-				} catch (e) {
-					noticeError(
-						`Failed to rename file '${linkInfo.path}', ${e}`,
-					);
-				}
+			replaceLink(editor, lineNumber, linkInfo, markdownLink);
 
-				notice.hide();
-			},
-		});
+			new Notice(`File rename successfully.`);
+		} catch (e) {
+			noticeError(`Failed to rename file '${linkInfo.path}', ${e}`);
+		}
 
-		renameModal.open();
+		notice.hide();
 	}
 
 	async onDeleteFile(
@@ -394,6 +389,7 @@ export default class WebDavImageUploaderPlugin extends Plugin {
 		link: Link<LinkInfo>,
 		editor: Editor,
 	) {
+		await link.init();
 		const linkInfo = link.data;
 
 		const notice = new Notice(`Deleting file '${linkInfo.path}'...`, 0);

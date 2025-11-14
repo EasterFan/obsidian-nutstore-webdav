@@ -5,6 +5,8 @@ import WebDavImageUploaderPlugin from "../main";
 export interface Link<T extends LinkData> {
 	data: T;
 
+	init(): Promise<void>;
+
 	uploadable(): boolean;
 
 	downloadable(): boolean;

@@ -1,5 +1,17 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 
+export async function getRenamePath(app: App, path: string) {
+	return new Promise<string | null>((reslove) => {
+		const modal = new RenameModal(app, {
+			title: "Rename File on WebDAV",
+			path: path,
+			onConfirm: async (newPath: string) => reslove(newPath),
+			onCancel: () => reslove(null),
+		});
+		modal.open();
+	});
+}
+
 export interface RenameModalSettings {
 	title?: string;
 	path: string;

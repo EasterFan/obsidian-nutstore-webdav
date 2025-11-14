@@ -29,6 +29,10 @@ export class AttachmentLink<T extends LinkData> implements Link<T> {
 		}
 	}
 
+	init(): Promise<void> {
+		return Promise.resolve();
+	}
+
 	uploadable(): boolean {
 		if (this.linkType === "external") {
 			return false;

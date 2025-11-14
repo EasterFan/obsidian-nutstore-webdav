@@ -8,7 +8,7 @@ const factory: LinkFactory = {
 	create<T extends LinkData>(
 		plugin: WebDavImageUploaderPlugin,
 		type: FileType,
-		data: T
+		data: T,
 	) {
 		if (type !== "pdf") {
 			return null;
@@ -122,13 +122,13 @@ export class PdfLink<T extends LinkData> extends AttachmentLink<T> {
 		const filePath =
 			await this.plugin.app.fileManager.getAvailablePathForAttachment(
 				fileInfo.fileName,
-				note.path
+				note.path,
 			);
 		const file = await this.plugin.app.vault.create(filePath, fileInfo.url);
 
 		let link = this.plugin.app.fileManager.generateMarkdownLink(
 			file,
-			filePath
+			filePath,
 		);
 
 		if (link[0] !== "!") {
@@ -160,6 +160,24 @@ export class PdfLink<T extends LinkData> extends AttachmentLink<T> {
 		}
 
 		return file;
+	}
+
+	async rename(note: TFile, newPath: string) {
+		await this.init();
+
+		if (!this.downloadable()) {
+			throw new Error("File is not downloadable");
+		}
+
+		const newUrl = await super.rename(note, newPath);
+
+		if (!this.isDummyPdf || this.dummyFile == null) {
+			return newUrl;
+		}
+
+		await this.plugin.app.vault.modify(this.dummyFile, newUrl);
+
+		return newUrl;
 	}
 
 	async delete(note: TFile) {

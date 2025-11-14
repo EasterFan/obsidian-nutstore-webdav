@@ -12,6 +12,7 @@ This is an Obsidian (https://obsidian.md) plugin for managing local images by st
 - You can also right-click on a local image link (`![file](attachments/file.jpg)`) and select the `Upload file to WebDAV` option from the menu to upload the image and insert the link. You can configure whether to keep the local file after a successful upload.
 - When right-clicking a preview link, you can select `Download file from WebDAV` to download the image locally. The path is related to your Obsidian configuration (Settings -> Files & Links).
 - When right-clicking a preview link, you can select `Delete file from WebDAV` to delete the image from the WebDAV server and remove the link from the note.
+- When right-clicking a preview link, you can select `Rename file from WebDAV` to rename(move) the image from the WebDAV server.
 
 ### Batch Upload/Download
 
@@ -30,13 +31,13 @@ In the file explorer, you can:
 
 After performing batch upload/download operations, a log file named `webdav-batch-log-<timestamp>.md` will be created in the vault's root directory. This log file records the results of each file processed during the batch operation, you can check it to see which files were successfully processed and which ones failed. And you can enable/disable this feature in the plugin settings.
 
-More details about the new features can be found in the [Release Page](https://github.com/Koishiiko/obsidian-webdav-image-uploader/releases).
-
 **Note: These batch process features have not been thoroughly tested (only run once in my vault). Please be sure to back up your vault before running them to prevent damage due to bugs.**
 
 ### Dummy PDF
 
 When `Settings -> Enable Dummy PDF` is enabled, the plugin will create a [Dummy PDF](https://ryotaushio.github.io/obsidian-pdf-plus/external-pdf-files.html) file after PDF file is uploaded, then you can preview the PDFs stored on WebDAV server by [PDF++](https://github.com/RyotaUshio/obsidian-pdf-plus) plugin. You can also upload/download/delete PDF files in the same way as other files. (Thanks the idea from [here](https://github.com/Koishiiko/obsidian-webdav-image-uploader/issues/6))
+
+More details about the new features can be found in the [Release Page](https://github.com/Koishiiko/obsidian-webdav-image-uploader/releases).
 
 ## Others
 

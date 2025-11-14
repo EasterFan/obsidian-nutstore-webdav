@@ -1,8 +1,6 @@
 import { App, Notice, TAbstractFile, TFile, TFolder, moment } from "obsidian";
 import {
-	formatPath,
 	getFileByPath,
-	getFormatVariables,
 	LinkInfo,
 	getFileType,
 	isLocalPath,
@@ -47,7 +45,7 @@ export class BatchUploader {
 				}
 
 				return content;
-			}
+			},
 		);
 	}
 
@@ -67,7 +65,7 @@ export class BatchUploader {
 		const total = notes.length;
 		for (const note of notes) {
 			notice.setMessage(
-				`Uploading files in '${note.path}'\n${count++}/${total}...`
+				`Uploading files in '${note.path}'\n${count++}/${total}...`,
 			);
 
 			try {
@@ -87,11 +85,11 @@ export class BatchUploader {
 	async uploadAttachments(folder: TFolder) {
 		const attachments = folder.children.filter(
 			(file) =>
-				file instanceof TFile && !this.plugin.isExcludeFile(file.path)
+				file instanceof TFile && !this.plugin.isExcludeFile(file.path),
 		);
 		const noteAttachmentsMap = getNotesByAttachments(
 			attachments,
-			this.plugin.app
+			this.plugin.app,
 		);
 
 		const notice = new Notice("", 0);
@@ -102,7 +100,7 @@ export class BatchUploader {
 			notice.setMessage(
 				`Uploading attachments in '${
 					note.path
-				}'\n${count++}/${total}...`
+				}'\n${count++}/${total}...`,
 			);
 
 			try {
@@ -122,7 +120,7 @@ export class BatchUploader {
 	async uploadNoteFiles(
 		note: TFile,
 		deleteAfterUpload: boolean,
-		attachments?: Set<TAbstractFile>
+		attachments?: Set<TAbstractFile>,
 	) {
 		const content = await this.plugin.app.vault.read(note);
 		const links = matchLinks(content).filter(
@@ -130,7 +128,7 @@ export class BatchUploader {
 				!this.plugin.isExcludeFile(link.path) &&
 				isLocalPath(link.path) &&
 				(this.plugin.settings.enableDummyPdf ||
-					getFileType(link.path) !== "pdf")
+					getFileType(link.path) !== "pdf"),
 		);
 		const total = links.length;
 		if (total === 0) {
@@ -160,7 +158,7 @@ export class BatchUploader {
 				let fileInfo = this.uploadedFiles.get(tFile);
 				if (fileInfo == null) {
 					notice.setMessage(
-						`Uploading '${tFile.path}'\n${count}/${total}...`
+						`Uploading '${tFile.path}'\n${count}/${total}...`,
 					);
 
 					const link = createLink(this.plugin, linkInfo)!;
@@ -212,7 +210,7 @@ export class BatchUploader {
 		for (const file of this.uploadedFiles.keys()) {
 			try {
 				notice.setMessage(
-					`Deleting local file '${file.path}'\n${count++}/${total}...`
+					`Deleting local file '${file.path}'\n${count++}/${total}...`,
 				);
 
 				await this.plugin.deleteLocalFile(file);
@@ -259,14 +257,14 @@ export class BatchDownloader {
 		const total = notes.length;
 		for (const note of notes) {
 			notice.setMessage(
-				`Downloading files in '${note.path}'\n${count++}/${total}...`
+				`Downloading files in '${note.path}'\n${count++}/${total}...`,
 			);
 
 			try {
 				await this.downloadNoteFiles(note);
 			} catch (e) {
 				noticeError(
-					`Failed to download files from '${note.path}', ${e}`
+					`Failed to download files from '${note.path}', ${e}`,
 				);
 			}
 		}
@@ -283,7 +281,7 @@ export class BatchDownloader {
 				(!this.plugin.settings.enableDummyPdf ||
 					getFileType(link.path) !== "pdf") &&
 				!this.plugin.isExcludeFile(link.path) &&
-				this.plugin.isWebdavUrl(link.path)
+				this.plugin.isWebdavUrl(link.path),
 		);
 		const total = links.length;
 		if (total === 0) {
@@ -297,7 +295,7 @@ export class BatchDownloader {
 		for (const linkInfo of links) {
 			try {
 				notice.setMessage(
-					`Downloading '${linkInfo.path}'\n${count++}/${total}...`
+					`Downloading '${linkInfo.path}'\n${count++}/${total}...`,
 				);
 
 				const link = createLink(this.plugin, linkInfo);
@@ -394,7 +392,7 @@ export interface BatchProcessFileResult {
 export async function createBatchLog(
 	app: App,
 	results: BatchProcessFileResult[],
-	appendLog?: (content: string) => Promise<string>
+	appendLog?: (content: string) => Promise<string>,
 ) {
 	const logPath = `webdav-batch-log-${moment().format("YYYYMMDD-HHmmss")}.md`;
 
@@ -416,10 +414,10 @@ export async function createBatchLog(
 			note,
 			logPath,
 			undefined,
-			note.basename
+			note.basename,
 		)}\n\n`;
 		results.sort((a, b) =>
-			a.success === b.success ? 0 : a.success ? -1 : 1
+			a.success === b.success ? 0 : a.success ? -1 : 1,
 		);
 		content += headerRow + "\n" + separatorRow + "\n";
 		for (const result of results) {

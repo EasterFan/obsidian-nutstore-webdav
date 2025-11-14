@@ -25,7 +25,7 @@ import {
 import { BatchDownloader, BatchUploader } from "./batch";
 import { ConfirmModal } from "./modals/confirmModal";
 import { Link, createLink } from "./link";
-import { getRenamePath, RenameModal } from "./modals/renameModal";
+import { getRenamePath } from "./modals/renameModal";
 
 export default class WebDavImageUploaderPlugin extends Plugin {
 	settings: WebDavImageUploaderSettings;

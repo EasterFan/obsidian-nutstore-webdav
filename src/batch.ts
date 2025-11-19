@@ -305,7 +305,7 @@ export class BatchDownloader {
 				if (linkInfo.raw !== newLink.markdownLink) {
 					newContent =
 						newContent.substring(0, linkInfo.start) +
-						newLink +
+						newLink.markdownLink +
 						newContent.substring(linkInfo.end);
 				}
 

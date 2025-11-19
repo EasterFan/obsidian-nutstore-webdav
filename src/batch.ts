@@ -50,7 +50,7 @@ export class BatchUploader {
 	}
 
 	async uploadVaultFiles() {
-		this.uploadFolderFiles();
+		await this.uploadFolderFiles();
 	}
 
 	async uploadFolderFiles(folder?: TFolder) {
@@ -242,7 +242,7 @@ export class BatchDownloader {
 	}
 
 	async downloadVaultFiles() {
-		this.downloadFolderFiles();
+		await this.downloadFolderFiles();
 	}
 
 	async downloadFolderFiles(folder?: TFolder) {
